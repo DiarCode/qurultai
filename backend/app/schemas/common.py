@@ -25,20 +25,4 @@ class AgentReference(ORMModel):
     name: str
 
 
-class KnowledgeSourceReference(ORMModel):
-    id: str
-    key: str | None
-    name: str
-    source_type: str
-    status: str
-
-
-class SkillReference(ORMModel):
-    id: str
-    key: str
-    name: str
-    category: str
-    is_active: bool
-
-
 JsonDict = dict[str, Any]
