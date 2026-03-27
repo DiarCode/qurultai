@@ -41,6 +41,36 @@ def parse_text(file_path: str) -> str:
         return f"Error parsing text: {str(e)}"
 
 
+def parse_image_ocr(file_path: str) -> str:
+    """Extract text from image using OCR (Tesseract)"""
+    try:
+        import pytesseract
+        from PIL import Image
+
+        image = Image.open(file_path)
+        return pytesseract.image_to_string(image)
+    except ImportError:
+        return "OCR dependencies not installed (pytesseract, Pillow)"
+    except Exception as e:
+        return f"Error with OCR: {str(e)}"
+
+
+def parse_html(file_path: str) -> str:
+    """Extract text from HTML file"""
+    try:
+        from bs4 import BeautifulSoup
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            soup = BeautifulSoup(f.read(), "html.parser")
+        for tag in soup(["script", "style"]):
+            tag.decompose()
+        return soup.get_text(separator="\n", strip=True)
+    except ImportError:
+        return "beautifulsoup4 not installed"
+    except Exception as e:
+        return f"Error parsing HTML: {str(e)}"
+
+
 def auto_parse_document(file_path: str) -> Tuple[str, str]:
     """
     Automatically parse document based on extension
@@ -54,18 +84,9 @@ def auto_parse_document(file_path: str) -> Tuple[str, str]:
         return parse_docx(file_path), "docx"
     elif ext in [".txt", ".md"]:
         return parse_text(file_path), "text"
+    elif ext in [".html", ".htm"]:
+        return parse_html(file_path), "html"
+    elif ext in [".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif"]:
+        return parse_image_ocr(file_path), "image"
     else:
         return f"Unsupported file type: {ext}", "unknown"
-
-
-# For future OCR support
-def parse_image_ocr(file_path: str) -> str:
-    """Extract text from image using OCR (Tesseract)"""
-    try:
-        # import pytesseract
-        # from PIL import Image
-        # image = Image.open(file_path)
-        # return pytesseract.image_to_string(image)
-        return "OCR not configured yet"
-    except Exception as e:
-        return f"Error with OCR: {str(e)}"

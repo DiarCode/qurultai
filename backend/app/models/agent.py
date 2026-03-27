@@ -4,9 +4,13 @@ from sqlalchemy import JSON, Column, String
 from sqlmodel import Field, Relationship
 
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.document import AgentDocumentLink
+from app.models.skill import AgentSkillLink
 from app.models.tool import AgentToolLink
 
 if TYPE_CHECKING:
+    from app.models.document import Document
+    from app.models.skill import Skill
     from app.models.tool import Tool
 
 
@@ -22,3 +26,5 @@ class Agent(UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     status: str = Field(default="active", max_length=50)
 
     tools: list["Tool"] = Relationship(back_populates="agents", link_model=AgentToolLink)
+    documents: list["Document"] = Relationship(back_populates="agents", link_model=AgentDocumentLink)
+    skills: list["Skill"] = Relationship(back_populates="agents", link_model=AgentSkillLink)
