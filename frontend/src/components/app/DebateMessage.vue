@@ -57,62 +57,62 @@ const shouldShowCitations = computed(() => !props.isTyping && props.message.cita
 
 <template>
   <article
-    class="surface-panel space-y-4 border-l-4 p-4 transition-all duration-500"
+    class="surface-panel space-y-5 border-l-4 p-5 transition-all duration-500"
     :class="
       message.tone === 'synthesis'
-        ? 'border-l-primary bg-[linear-gradient(180deg,rgba(255,252,247,0.98),rgba(246,237,226,0.88))]'
+        ? 'border-l-slate-900 bg-gradient-to-br from-white/95 via-slate-50/80 to-white/90'
         : isLatest
-          ? 'border-l-primary/40'
+          ? 'border-l-slate-400'
           : 'border-l-transparent'
     "
   >
-    <div class="flex items-start gap-3">
+    <div class="flex items-start gap-4">
       <div
-        class="ornament-ring flex size-12 shrink-0 items-center justify-center text-primary transition-transform duration-300"
-        :class="isTyping ? 'scale-[1.03]' : ''"
+        class="ornament-ring flex size-14 shrink-0 items-center justify-center text-slate-900 transition-transform duration-500"
+        :class="isTyping ? 'scale-[1.04]' : ''"
       >
-        <AppIcon :name="agent.icon" :size="20" />
+        <AppIcon :name="agent.icon" :size="22" />
       </div>
 
-      <div class="min-w-0 flex-1 space-y-3">
-        <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0 flex-1 space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-4">
           <div class="space-y-2">
             <div class="flex flex-wrap items-center gap-2">
-              <h3 class="text-sm font-medium text-foreground">
+              <h3 class="text-sm font-light tracking-tight text-slate-900">
                 {{ agent.name }}
               </h3>
               <Badge :variant="toneVariant">{{ message.stance }}</Badge>
               <Badge variant="muted">{{ agent.role }}</Badge>
             </div>
-            <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span class="uppercase tracking-[0.2em]">{{ stageLabel }}</span>
-              <span class="h-1 w-1 rounded-full bg-border" />
+            <div class="flex flex-wrap items-center gap-2 text-xs font-light text-slate-400">
+              <span>{{ stageLabel }}</span>
+              <span class="h-1 w-1 rounded-full bg-slate-200" />
               <span>{{ message.timestamp }}</span>
             </div>
           </div>
 
           <div
             v-if="isTyping"
-            class="inline-flex items-center gap-2 rounded-full bg-primary/8 px-3 py-1"
+            class="inline-flex items-center gap-2.5 rounded-full bg-slate-900/5 px-4 py-1.5"
           >
-            <AppIcon name="loading" :size="14" class="animate-spin text-primary" />
-            <span class="text-xs font-medium text-primary">Печатает</span>
+            <AppIcon name="loading" :size="14" class="animate-spin text-slate-400" />
+            <span class="text-xs font-light text-slate-600">Печатает</span>
           </div>
         </div>
 
         <p
           v-if="message.replyToLabel"
-          class="inline-flex rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
+          class="inline-flex rounded-full border border-slate-100 bg-white/70 px-4 py-1.5 text-xs font-light tracking-tight text-slate-400"
         >
           {{ message.replyToLabel }}
         </p>
 
-        <p class="whitespace-pre-line text-sm leading-7 text-foreground">
+        <p class="whitespace-pre-line text-sm font-light leading-7 text-slate-700">
           {{ renderedContent }}
           <span
             v-if="isTyping"
             aria-hidden="true"
-            class="ml-1 inline-block h-5 w-0.5 animate-pulse rounded-full bg-primary/70 align-middle"
+            class="ml-1 inline-block h-5 w-0.5 animate-pulse rounded-full bg-slate-400 align-middle"
           />
         </p>
 

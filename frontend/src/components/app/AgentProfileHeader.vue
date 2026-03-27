@@ -2,7 +2,6 @@
 import type { AgentProfile } from '@/types/council'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 
 import AppIcon from './AppIcon.vue'
 
@@ -24,13 +23,19 @@ const statusLabel = {
 </script>
 
 <template>
-  <Card class="rounded-[2rem] border-border/80 bg-card/88">
-    <CardContent class="grid gap-6 pt-6 md:grid-cols-[minmax(0,1fr)_280px]">
-      <div class="flex items-start gap-4">
-        <div class="ornament-ring flex size-16 items-center justify-center text-primary">
-          <AppIcon :name="agent.icon" :size="26" />
+  <article class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl">
+    <!-- Glass reflection -->
+    <div
+      class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent opacity-50"
+    />
+
+    <div class="relative grid gap-8 pt-8 md:grid-cols-[minmax(0,1fr)_300px]">
+      <!-- Left: Profile Info -->
+      <div class="flex items-start gap-5">
+        <div class="ornament-ring flex size-18 items-center justify-center text-slate-900">
+          <AppIcon :name="agent.icon" :size="28" />
         </div>
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-2">
             <Badge :variant="statusVariant[agent.status]">
               {{ statusLabel[agent.status] }}
@@ -39,40 +44,41 @@ const statusLabel = {
           </div>
           <div>
             <h1
-              class="font-display text-[clamp(2.4rem,4vw,4rem)] leading-[0.95] tracking-[-0.04em] text-foreground"
+              class="font-display text-[clamp(2.5rem,5vw,4.25rem)] leading-[0.94] tracking-tight text-slate-900"
             >
               {{ agent.name }}
             </h1>
-            <p class="mt-2 text-base text-[color:var(--ornament-strong)]">
+            <p class="mt-3 text-base font-light text-slate-400">
               {{ agent.role }}
             </p>
           </div>
-          <p class="max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+          <p class="max-w-2xl text-sm font-light leading-7 text-slate-500 sm:text-base">
             {{ agent.description }}
           </p>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="rounded-[1.5rem] border border-border/70 bg-[color:var(--surface-muted)] p-4">
-          <p class="text-xs uppercase tracking-[0.22em] text-muted-foreground">Документы</p>
-          <p class="mt-3 text-2xl font-medium text-foreground">
+      <!-- Right: Stats -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+          <p class="text-xs font-light tracking-tight text-slate-400">Документы</p>
+          <p class="mt-3 text-2xl font-light text-slate-900">
             {{ agent.documentsCount }}
           </p>
         </div>
-        <div class="rounded-[1.5rem] border border-border/70 bg-[color:var(--surface-muted)] p-4">
-          <p class="text-xs uppercase tracking-[0.22em] text-muted-foreground">Навыки</p>
-          <p class="mt-3 text-2xl font-medium text-foreground">
+        <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+          <p class="text-xs font-light tracking-tight text-slate-400">Навыки</p>
+          <p class="mt-3 text-2xl font-light text-slate-900">
             {{ agent.skillsCount }}
           </p>
         </div>
-        <div class="col-span-2 rounded-[1.5rem] border border-border/70 bg-background/85 p-4">
-          <p class="text-xs uppercase tracking-[0.22em] text-muted-foreground">Роль в совете</p>
-          <p class="mt-3 text-sm leading-7 text-foreground">
+        <div class="col-span-2 rounded-2xl border border-slate-100 bg-white/60 p-5">
+          <p class="text-xs font-light tracking-tight text-slate-400">Роль в совете</p>
+          <p class="mt-3 text-sm font-light leading-7 text-slate-700">
             {{ agent.systemPrompt }}
           </p>
         </div>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </article>
 </template>

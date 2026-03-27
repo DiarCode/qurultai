@@ -1,11 +1,28 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden pb-28 pt-6 lg:pb-10 lg:pl-28">
+  <div class="relative min-h-screen overflow-hidden pb-20 pt-8 lg:pb-12 lg:pl-24">
+    <!-- Glassmorphic ambient background -->
     <div class="pointer-events-none absolute inset-0">
+      <!-- Primary radial gradient - top left -->
       <div
-        class="absolute left-[-12rem] top-[-10rem] h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(230,162,95,0.16),transparent_70%)]"
+        class="absolute -left-32 -top-32 aspect-square w-[500px] rounded-full bg-gradient-to-br from-slate-100/60 to-transparent blur-3xl"
       />
+      <!-- Secondary radial gradient - bottom right -->
       <div
-        class="absolute bottom-[-8rem] right-[-6rem] h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(191,126,63,0.1),transparent_70%)]"
+        class="absolute -bottom-24 -right-24 aspect-square w-[400px] rounded-full bg-gradient-to-tl from-slate-200/40 to-transparent blur-3xl"
+      />
+      <!-- Accent highlight -->
+      <div
+        class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 aspect-square w-[800px] rounded-full bg-gradient-radial from-white/30 via-slate-50/20 to-transparent"
+      />
+      <!-- Subtle grid pattern -->
+      <div
+        class="absolute inset-0 opacity-[0.03]"
+        style="
+          background-image:
+            linear-gradient(to right, rgb(15 23 42) 1px, transparent 1px),
+            linear-gradient(to bottom, rgb(15 23 42) 1px, transparent 1px);
+          background-size: 48px 48px;
+        "
       />
     </div>
     <slot />

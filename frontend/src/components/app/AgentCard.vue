@@ -4,7 +4,6 @@ import { RouterLink } from 'vue-router'
 import type { AgentProfile } from '@/types/council'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import AppIcon from './AppIcon.vue'
 
@@ -27,50 +26,56 @@ const statusLabel = {
 
 <template>
   <RouterLink :to="`/agents/${agent.id}`" class="group block">
-    <Card
-      class="h-full rounded-[2rem] border-border/80 bg-card/88 transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/35"
+    <article
+      class="relative h-full overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl transition-all duration-700 group-hover:-translate-y-1.5 group-hover:border-slate-200 group-hover:shadow-lg"
     >
-      <CardHeader class="gap-4">
-        <div class="flex items-center justify-between gap-4">
-          <div class="ornament-ring flex size-14 items-center justify-center text-primary">
-            <AppIcon :name="agent.icon" :size="22" />
+      <!-- Glass reflection -->
+      <div
+        class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent opacity-50"
+      />
+
+      <div class="relative p-6 sm:p-8">
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 mb-5">
+          <div class="ornament-ring flex size-16 items-center justify-center text-slate-900">
+            <AppIcon :name="agent.icon" :size="24" />
           </div>
           <Badge :variant="statusVariant[agent.status]">
             {{ statusLabel[agent.status] }}
           </Badge>
         </div>
-        <div class="space-y-2">
-          <CardTitle class="text-xl">
+
+        <!-- Title -->
+        <div class="space-y-2 mb-5">
+          <h3 class="text-xl font-light tracking-tight text-slate-900">
             {{ agent.name }}
-          </CardTitle>
-          <p class="text-sm text-[color:var(--ornament-strong)]">
+          </h3>
+          <p class="text-sm font-light text-slate-400">
             {{ agent.role }}
           </p>
         </div>
-      </CardHeader>
-      <CardContent class="space-y-5">
-        <p class="text-sm leading-7 text-muted-foreground">
+
+        <!-- Description -->
+        <p class="text-sm font-light leading-7 text-slate-500 mb-6">
           {{ agent.description }}
         </p>
-        <div class="grid grid-cols-2 gap-3 text-sm">
-          <div
-            class="rounded-[1.25rem] border border-border/70 bg-[color:var(--surface-muted)] p-3"
-          >
-            <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">Документы</p>
-            <p class="mt-2 text-lg font-medium text-foreground">
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+            <p class="text-xs font-light tracking-tight text-slate-400">Документы</p>
+            <p class="mt-2 text-xl font-light text-slate-900">
               {{ agent.documentsCount }}
             </p>
           </div>
-          <div
-            class="rounded-[1.25rem] border border-border/70 bg-[color:var(--surface-muted)] p-3"
-          >
-            <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">Навыки</p>
-            <p class="mt-2 text-lg font-medium text-foreground">
+          <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+            <p class="text-xs font-light tracking-tight text-slate-400">Навыки</p>
+            <p class="mt-2 text-xl font-light text-slate-900">
               {{ agent.skillsCount }}
             </p>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   </RouterLink>
 </template>

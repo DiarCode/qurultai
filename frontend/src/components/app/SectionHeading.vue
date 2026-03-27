@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<Props>(), {
   <div
     :class="
       cn(
-        'space-y-3',
+        'space-y-4',
         props.align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl',
         props.class,
       )
@@ -30,11 +30,11 @@ const props = withDefaults(defineProps<Props>(), {
       {{ eyebrow }}
     </p>
     <h2
-      class="font-display text-[clamp(2rem,4vw,3.5rem)] leading-[0.98] tracking-[-0.03em] text-foreground"
+      class="font-display text-[clamp(2rem,4.5vw,3.75rem)] leading-[0.96] tracking-tight text-slate-900"
     >
       {{ title }}
     </h2>
-    <p v-if="description" class="max-w-xl text-sm leading-7 text-muted-foreground md:text-base">
+    <p v-if="description" class="max-w-xl text-sm font-light leading-7 text-slate-500 sm:text-base">
       {{ description }}
     </p>
   </div>

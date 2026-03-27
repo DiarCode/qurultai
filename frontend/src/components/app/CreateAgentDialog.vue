@@ -61,66 +61,66 @@ function submit() {
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent
-      class="max-h-[88vh] max-w-3xl overflow-y-auto rounded-[2rem] border-border/80 bg-background/95 p-0"
+      class="max-h-[88vh] max-w-3xl overflow-y-auto rounded-4xl border-slate-100 bg-white/95 backdrop-blur-xl p-0"
     >
-      <DialogHeader class="border-b border-border/70 px-6 py-5">
-        <DialogTitle class="font-display text-3xl tracking-[-0.03em]">
+      <DialogHeader class="border-b border-slate-100 px-7 py-6">
+        <DialogTitle class="font-display text-3xl tracking-tight text-slate-900">
           Добавить агента
         </DialogTitle>
-        <DialogDescription class="text-sm leading-7 text-muted-foreground">
+        <DialogDescription class="text-sm font-light leading-7 text-slate-500">
           Настройте нового участника совета: роль, системный промпт, цели и ограничения для будущих
           обсуждений.
         </DialogDescription>
       </DialogHeader>
 
-      <div class="grid gap-5 px-6 py-5">
-        <div class="grid gap-5 md:grid-cols-2">
-          <label class="space-y-2">
-            <span class="text-sm font-medium text-foreground">Имя агента</span>
+      <div class="grid gap-6 px-7 py-6">
+        <div class="grid gap-6 md:grid-cols-2">
+          <label class="space-y-3">
+            <span class="text-sm font-light tracking-tight text-slate-900">Имя агента</span>
             <Input
               v-model="form.name"
-              class="rounded-2xl bg-background/90"
+              class="rounded-2xl bg-white/90"
               placeholder="Например, Синтез"
             />
           </label>
-          <label class="space-y-2">
-            <span class="text-sm font-medium text-foreground">Роль</span>
+          <label class="space-y-3">
+            <span class="text-sm font-light tracking-tight text-slate-900">Роль</span>
             <Input
               v-model="form.role"
-              class="rounded-2xl bg-background/90"
+              class="rounded-2xl bg-white/90"
               placeholder="Например, аналитик доверия"
             />
           </label>
         </div>
 
-        <label class="space-y-2">
-          <span class="text-sm font-medium text-foreground">Краткое описание</span>
-          <Textarea v-model="form.description" class="min-h-24 bg-background/90" />
+        <label class="space-y-3">
+          <span class="text-sm font-light tracking-tight text-slate-900">Краткое описание</span>
+          <Textarea v-model="form.description" class="min-h-28 bg-white/90" />
         </label>
 
-        <label class="space-y-2">
-          <span class="text-sm font-medium text-foreground">Системный промпт</span>
-          <Textarea v-model="form.systemPrompt" class="min-h-36 bg-background/90" />
+        <label class="space-y-3">
+          <span class="text-sm font-light tracking-tight text-slate-900">Системный промпт</span>
+          <Textarea v-model="form.systemPrompt" class="min-h-40 bg-white/90" />
         </label>
 
-        <div class="grid gap-5 md:grid-cols-2">
-          <label class="space-y-2">
-            <span class="text-sm font-medium text-foreground">Цели</span>
-            <Textarea v-model="form.goals" class="min-h-28 bg-background/90" />
+        <div class="grid gap-6 md:grid-cols-2">
+          <label class="space-y-3">
+            <span class="text-sm font-light tracking-tight text-slate-900">Цели</span>
+            <Textarea v-model="form.goals" class="min-h-32 bg-white/90" />
           </label>
-          <label class="space-y-2">
-            <span class="text-sm font-medium text-foreground">Ограничения</span>
-            <Textarea v-model="form.constraints" class="min-h-28 bg-background/90" />
+          <label class="space-y-3">
+            <span class="text-sm font-light tracking-tight text-slate-900">Ограничения</span>
+            <Textarea v-model="form.constraints" class="min-h-32 bg-white/90" />
           </label>
         </div>
 
-        <label class="space-y-2">
-          <span class="text-sm font-medium text-foreground">Статус</span>
+        <label class="space-y-3">
+          <span class="text-sm font-light tracking-tight text-slate-900">Статус</span>
           <Select v-model="form.status">
-            <SelectTrigger class="w-full rounded-2xl bg-background/90">
+            <SelectTrigger class="w-full rounded-2xl bg-white/90">
               <SelectValue placeholder="Выберите статус" />
             </SelectTrigger>
-            <SelectContent class="rounded-2xl border-border/80 bg-background/95">
+            <SelectContent class="rounded-2xl border-slate-100 bg-white/95 backdrop-blur-xl">
               <SelectItem value="active">Активен</SelectItem>
               <SelectItem value="draft">Черновик</SelectItem>
               <SelectItem value="paused">На паузе</SelectItem>
@@ -129,11 +129,11 @@ function submit() {
         </label>
       </div>
 
-      <DialogFooter class="border-t border-border/70 px-6 py-5">
+      <DialogFooter class="border-t border-slate-100 px-7 py-6">
         <Button variant="outline" class="rounded-full" @click="emit('update:open', false)">
           Отмена
         </Button>
-        <Button class="rounded-full px-5" @click="submit">
+        <Button class="rounded-full px-6" @click="submit">
           <AppIcon name="addCircle" :size="18" />
           Сохранить агента
         </Button>

@@ -10,7 +10,6 @@ import EmptyStateCouncil from '@/components/app/EmptyStateCouncil.vue'
 import SkillPickerPanel from '@/components/app/SkillPickerPanel.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -79,29 +78,40 @@ function saveAgent() {
 </script>
 
 <template>
-  <section v-if="agent" class="space-y-8">
+  <section v-if="agent" class="space-y-10">
     <AgentProfileHeader :agent="agent" />
 
     <Tabs default-value="details">
-      <TabsList class="w-full justify-start overflow-x-auto rounded-[2rem] p-2 md:w-auto">
-        <TabsTrigger value="details" class="rounded-full px-4"> Детали агента </TabsTrigger>
-        <TabsTrigger value="documents" class="rounded-full px-4"> Документы и RAG </TabsTrigger>
-        <TabsTrigger value="skills" class="rounded-full px-4"> Навыки агента </TabsTrigger>
+      <TabsList class="w-full justify-start overflow-x-auto rounded-4xl p-2 md:w-auto">
+        <TabsTrigger value="details" class="rounded-full px-5">
+          Детали агента
+        </TabsTrigger>
+        <TabsTrigger value="documents" class="rounded-full px-5">
+          Документы и RAG
+        </TabsTrigger>
+        <TabsTrigger value="skills" class="rounded-full px-5">
+          Навыки агента
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="details">
-        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <Card class="rounded-[2rem] border-border/80 bg-card/88">
-            <CardContent class="grid gap-5 pt-6">
-              <div class="grid gap-5 md:grid-cols-2">
-                <label class="space-y-2">
-                  <span class="text-sm font-medium text-foreground">Роль</span>
-                  <Input v-model="editor.role" class="rounded-2xl bg-background/90" />
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <!-- Main Form Card -->
+          <article class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl">
+            <div
+              class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent opacity-50"
+            />
+            <div class="relative p-6 sm:p-8 space-y-6">
+              <!-- Role & Status Row -->
+              <div class="grid gap-6 md:grid-cols-2">
+                <label class="space-y-3">
+                  <span class="text-sm font-light tracking-tight text-slate-900">Роль</span>
+                  <Input v-model="editor.role" class="rounded-2xl bg-white/90" />
                 </label>
-                <div class="space-y-2">
-                  <span class="text-sm font-medium text-foreground">Статус</span>
+                <div class="space-y-3">
+                  <span class="text-sm font-light tracking-tight text-slate-900">Статус</span>
                   <div
-                    class="rounded-2xl border border-border/70 bg-[color:var(--surface-muted)] px-4 py-3 text-sm text-foreground"
+                    class="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-3.5 text-sm font-light text-slate-700"
                   >
                     {{
                       agent.status === 'active'
@@ -114,71 +124,72 @@ function saveAgent() {
                 </div>
               </div>
 
-              <label class="space-y-2">
-                <span class="text-sm font-medium text-foreground">Описание</span>
-                <Textarea v-model="editor.description" class="min-h-28 bg-background/90" />
+              <!-- Description -->
+              <label class="space-y-3">
+                <span class="text-sm font-light tracking-tight text-slate-900">Описание</span>
+                <Textarea v-model="editor.description" class="min-h-32 bg-white/90" />
               </label>
 
-              <label class="space-y-2">
-                <span class="text-sm font-medium text-foreground">Системный промпт</span>
-                <Textarea v-model="editor.systemPrompt" class="min-h-40 bg-background/90" />
+              <!-- System Prompt -->
+              <label class="space-y-3">
+                <span class="text-sm font-light tracking-tight text-slate-900">Системный промпт</span>
+                <Textarea v-model="editor.systemPrompt" class="min-h-44 bg-white/90" />
               </label>
 
               <Separator />
 
-              <div class="grid gap-5 md:grid-cols-2">
-                <div class="space-y-3">
+              <!-- Goals & Constraints -->
+              <div class="grid gap-6 md:grid-cols-2">
+                <div class="space-y-4">
                   <p class="section-kicker">Цели</p>
-                  <ul class="space-y-2">
+                  <ul class="space-y-3">
                     <li
                       v-for="goal in agent.goals"
                       :key="goal"
-                      class="rounded-[1.25rem] border border-border/70 bg-[color:var(--surface-muted)] px-4 py-3 text-sm leading-7 text-foreground"
+                      class="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-4 text-sm font-light leading-7 text-slate-700"
                     >
                       {{ goal }}
                     </li>
                   </ul>
                 </div>
 
-                <div class="space-y-3">
+                <div class="space-y-4">
                   <p class="section-kicker">Ограничения</p>
-                  <ul class="space-y-2">
+                  <ul class="space-y-3">
                     <li
                       v-for="constraint in agent.constraints"
                       :key="constraint"
-                      class="rounded-[1.25rem] border border-border/70 bg-[color:var(--surface-muted)] px-4 py-3 text-sm leading-7 text-foreground"
+                      class="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-4 text-sm font-light leading-7 text-slate-700"
                     >
                       {{ constraint }}
                     </li>
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </article>
 
-          <Card class="rounded-[2rem] border-border/80 bg-card/88">
-            <CardContent class="space-y-5 pt-6">
-              <div class="space-y-3">
+          <!-- Sidebar Card -->
+          <article class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl">
+            <div
+              class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent opacity-50"
+            />
+            <div class="relative p-6 sm:p-8 space-y-6">
+              <div class="space-y-4">
                 <p class="section-kicker">Мета-данные</p>
-                <div class="space-y-3">
-                  <div
-                    class="rounded-[1.5rem] border border-border/70 bg-[color:var(--surface-muted)] p-4"
-                  >
-                    <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <div class="space-y-4">
+                  <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p class="text-xs font-light tracking-tight text-slate-400">
                       ID агента
                     </p>
-                    <p class="mt-2 text-sm text-foreground">{{ agent.id }}</p>
+                    <p class="mt-2 text-sm font-light text-slate-700">{{ agent.id }}</p>
                   </div>
-                  <div
-                    class="rounded-[1.5rem] border border-border/70 bg-[color:var(--surface-muted)] p-4"
-                  >
-                    <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">Фокус</p>
-                    <p class="mt-2 text-sm text-foreground">{{ agent.focus }}</p>
+                  <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p class="text-xs font-light tracking-tight text-slate-400">Фокус</p>
+                    <p class="mt-2 text-sm font-light text-slate-700">{{ agent.focus }}</p>
                   </div>
-                  <div
-                    class="rounded-[1.5rem] border border-border/70 bg-[color:var(--surface-muted)] p-4"
-                  >
-                    <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p class="text-xs font-light tracking-tight text-slate-400">
                       Подключённые навыки
                     </p>
                     <div class="mt-3 flex flex-wrap gap-2">
@@ -194,8 +205,8 @@ function saveAgent() {
                 <AppIcon name="check" :size="18" />
                 Сохранить изменения
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </article>
         </div>
       </TabsContent>
 
@@ -214,7 +225,7 @@ function saveAgent() {
     </Tabs>
   </section>
 
-  <section v-else class="py-16">
+  <section v-else class="py-20">
     <EmptyStateCouncil
       icon="agent"
       title="Агент не найден"
