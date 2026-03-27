@@ -9,7 +9,9 @@ from app.schemas.common import ORMModel
 
 class RoomCreateRequest(ORMModel):
     query: str
+    context_text: str | None = None
     document_path: str | None = None
+    async_mode: bool = True
 
 
 class RoomCreateResponse(ORMModel):
@@ -29,6 +31,7 @@ class RoomReportResponse(ORMModel):
     report_md: str | None
     report_html_path: str | None = None
     report_pdf_path: str | None = None
+    thread_id: str | None = None
 
 
 class RoomChatRequest(ORMModel):
@@ -67,3 +70,13 @@ class RoomTraceResponse(ORMModel):
     room_id: str
     status: str
     runs: list[AgentRunRead] = Field(default_factory=list)
+
+
+class RoomResultDocumentsResponse(ORMModel):
+    room_id: str
+    report_md_s3_uri: str | None = None
+    report_html_s3_uri: str | None = None
+    report_pdf_s3_uri: str | None = None
+    report_md_download_url: str | None = None
+    report_html_download_url: str | None = None
+    report_pdf_download_url: str | None = None

@@ -6,12 +6,19 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.135.2",
+    "langchain>=0.3.27",
+    "langchain-ollama>=0.3.3",
+    "langgraph>=0.6.7",
+    "minio>=7.2.18",
     "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
     "sqlmodel>=0.0.37",
+    "qdrant-client>=1.15.1",
     "uvicorn[standard]>=0.42.0",
     "PyPDF2>=3.0.0",
+    "python-multipart>=0.0.20",
     "python-docx>=1.0.0",
+    "sentence-transformers>=5.1.1",
 ]
 
 [dependency-groups]

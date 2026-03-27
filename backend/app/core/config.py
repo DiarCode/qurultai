@@ -19,6 +19,28 @@ class Settings(BaseSettings):
     SQLITE_DIR: str = "data/sqlite"
     UPLOADS_DIR: str = "data/uploads"
     REPORTS_DIR: str = "data/reports"
+    LANGGRAPH_MAX_STEPS: int = 25
+
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_API_KEY: str | None = None
+    OLLAMA_MODEL: str = "qwen2.5:7b"
+    OLLAMA_TEMPERATURE: float = 0.1
+    OLLAMA_TIMEOUT_SECONDS: float = 20.0
+
+    QDRANT_URL: str = "http://127.0.0.1:6333"
+    QDRANT_API_KEY: str | None = None
+    QDRANT_COLLECTION: str = "room_steps"
+
+    MINIO_ENDPOINT: str = "127.0.0.1:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_SECURE: bool = False
+    MINIO_BUCKET: str = "room-artifacts"
+    S3_KNOWLEDGE_PREFIX: str = "knowledge"
+    S3_REPORTS_PREFIX: str = "reports"
+
+    EMBEDDING_MODEL_NAME: str = "intfloat/multilingual-e5-small"
+    EMBEDDING_DIMENSION: int = 384
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 
 from app.api.deps import SessionDep
 from app.schemas.rooms import (
@@ -7,6 +7,7 @@ from app.schemas.rooms import (
     RoomCreateRequest,
     RoomCreateResponse,
     RoomReportResponse,
+    RoomResultDocumentsResponse,
     RoomStatusResponse,
     RoomTraceResponse,
 )
@@ -16,9 +17,30 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 @router.post("/create", response_model=RoomCreateResponse)
-def create_room(payload: RoomCreateRequest, session: SessionDep) -> RoomCreateResponse:
+def create_room(
+    payload: RoomCreateRequest,
+    background_tasks: BackgroundTasks,
+    session: SessionDep,
+) -> RoomCreateResponse:
     room = room_service.create_room(session, payload.query)
-    room = room_service.run_room_workflow(session, room.id, payload.document_path)
+
+    if payload.async_mode:
+        room_service.mark_room_processing(session, room.id)
+        background_tasks.add_task(
+            room_service.process_room_workflow,
+            room.id,
+            payload.document_path,
+            payload.context_text,
+        )
+        room = room_service.get_room_status(session, room.id)
+    else:
+        room = room_service.run_room_workflow(
+            session,
+            room.id,
+            payload.document_path,
+            payload.context_text,
+        )
+
     return RoomCreateResponse(room_id=room.id, status=room.status, thread_id=room_service.room_thread_id(room.id))
 
 
@@ -37,6 +59,7 @@ def room_report(room_id: str, session: SessionDep) -> RoomReportResponse:
         report_md=room.final_report_md,
         report_html_path=html_path,
         report_pdf_path=pdf_path,
+        thread_id=room_service.room_thread_id(room.id),
     )
 
 
@@ -49,3 +72,10 @@ def room_trace(room_id: str, session: SessionDep) -> RoomTraceResponse:
 def room_chat(payload: RoomChatRequest, session: SessionDep) -> RoomChatResponse:
     answer = room_service.chat_with_room(session, payload.room_id, payload.query)
     return RoomChatResponse(answer=answer)
+
+
+@router.get("/{room_id}/result-documents", response_model=RoomResultDocumentsResponse)
+def room_result_documents(room_id: str, session: SessionDep) -> RoomResultDocumentsResponse:
+    room_service.get_room_status(session, room_id)
+    payload = room_service.get_room_result_documents(room_id)
+    return RoomResultDocumentsResponse(room_id=room_id, **payload)
