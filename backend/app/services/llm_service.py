@@ -13,11 +13,14 @@ logger = logging.getLogger(__name__)
 @lru_cache(maxsize=1)
 def get_llm() -> ChatOllama:
     settings = get_settings()
-    return ChatOllama(
-        base_url=settings.OLLAMA_BASE_URL,
-        model=settings.OLLAMA_MODEL,
-        temperature=settings.OLLAMA_TEMPERATURE,
-    )
+    kwargs: dict = {
+        "base_url": settings.OLLAMA_BASE_URL,
+        "model": settings.OLLAMA_MODEL,
+        "temperature": settings.OLLAMA_TEMPERATURE,
+    }
+    if settings.OLLAMA_API_KEY:
+        kwargs["api_key"] = settings.OLLAMA_API_KEY
+    return ChatOllama(**kwargs)
 
 
 def invoke_llm(prompt: str, system_prompt: str | None = None) -> str:

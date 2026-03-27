@@ -30,8 +30,9 @@ class Settings(BaseSettings):
 
     # Ollama / LLM
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3"
+    OLLAMA_MODEL: str = "nemotron-3-nano:30b-cloud"
     OLLAMA_TEMPERATURE: float = 0.3
+    OLLAMA_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

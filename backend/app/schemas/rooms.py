@@ -43,7 +43,10 @@ class RoomChatResponse(ORMModel):
 class AgentSourceRead(ORMModel):
     source_type: str | None
     ref_id: str | None
+    document_id: str | None = None
+    title: str | None = None
     snippet: str | None
+    page_number: int | None = None
     score: float | None
 
 
