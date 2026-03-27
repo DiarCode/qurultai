@@ -80,9 +80,6 @@ graph LR
 
 ## 🤝 Team
 
-Built for **Decentrathon 5.0 - AI for Government Track**.
-
 <div align="center">
   <i>Qurultai: Where Tradition Meets Digital Intelligence.</i>
 </div>
-````
