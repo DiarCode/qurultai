@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     SQLITE_DIR: str = "data/sqlite"
     UPLOADS_DIR: str = "data/uploads"
     REPORTS_DIR: str = "data/reports"
+    SKILLS_DIR: str = "data/skills"
     LANGGRAPH_MAX_STEPS: int = 25
 
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
@@ -64,6 +65,10 @@ class Settings(BaseSettings):
     @property
     def reports_dir_path(self) -> Path:
         return resolve_path(self.REPORTS_DIR)
+
+    @property
+    def skills_dir_path(self) -> Path:
+        return resolve_path(self.SKILLS_DIR)
 
     @property
     def sqlite_db_path(self) -> Path:
