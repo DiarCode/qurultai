@@ -85,12 +85,21 @@ def search(query: str, limit: int = 5, agent_id: str | None = None) -> list[dict
             must=[rest.FieldCondition(key="agent_id", match=rest.MatchValue(value=agent_id))]
         )
 
-    results = client.search(
-        collection_name=_collection_name(),
-        query_vector=vector,
-        limit=limit,
-        query_filter=query_filter,
-    )
+    if hasattr(client, "search"):
+        results = client.search(
+            collection_name=_collection_name(),
+            query_vector=vector,
+            limit=limit,
+            query_filter=query_filter,
+        )
+    else:
+        query_response = client.query_points(
+            collection_name=_collection_name(),
+            query=vector,
+            limit=limit,
+            query_filter=query_filter,
+        )
+        results = getattr(query_response, "points", query_response)
 
     payload: list[dict[str, str | float | None]] = []
     for hit in results:

@@ -109,16 +109,13 @@ def list_agent_documents(session: Session, agent_id: str) -> list[KnowledgeDocum
     links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.agent_id == agent_id)))
     if not links:
         return []
-    docs = list(
+    return list(
         session.exec(
             select(KnowledgeDocument)
             .where(KnowledgeDocument.id.in_([link.document_id for link in links]))
             .order_by(KnowledgeDocument.created_at.desc())
         )
     )
-    for doc in docs:
-        setattr(doc, "agent_ids", [agent_id])
-    return docs
 
 
 def link_document_to_agent(session: Session, agent_id: str, document_id: str) -> None:

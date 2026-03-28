@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from sqlmodel import select
 from sqlmodel import Session
 
+from app.models.knowledge_document import AgentKnowledgeLink
 from app.schemas.knowledge import (
     KnowledgeDocumentDownloadResponse,
     KnowledgeDocumentListResponse,
@@ -15,9 +17,19 @@ from app.schemas.knowledge import (
 from app.services import knowledge_service
 
 
-def _to_read(doc) -> KnowledgeDocumentRead:
+def _build_agent_ids_map(session: Session, doc_ids: list[str]) -> dict[str, list[str]]:
+    if not doc_ids:
+        return {}
+    links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.document_id.in_(doc_ids))))
+    mapping: dict[str, list[str]] = {}
+    for link in links:
+        mapping.setdefault(link.document_id, []).append(link.agent_id)
+    return mapping
+
+
+def _to_read(doc, agent_ids: list[str] | None = None) -> KnowledgeDocumentRead:
     data = KnowledgeDocumentRead.model_validate(doc).model_dump()
-    data["agent_ids"] = list(getattr(doc, "agent_ids", []))
+    data["agent_ids"] = list(agent_ids or [])
     return KnowledgeDocumentRead(**data)
 
 
@@ -38,12 +50,19 @@ def upload_document(
         agent_id=payload.agent_id,
         title=payload.title,
     )
-    return KnowledgeDocumentUploadResponse(document=_to_read(doc), chunks_ingested=chunks_ingested)
+    return KnowledgeDocumentUploadResponse(
+        document=_to_read(doc, [payload.agent_id] if payload.agent_id else []),
+        chunks_ingested=chunks_ingested,
+    )
 
 
 def list_documents(session: Session, agent_id: str | None = None) -> KnowledgeDocumentListResponse:
     docs = knowledge_service.list_documents(session, agent_id=agent_id)
-    return KnowledgeDocumentListResponse(items=[_to_read(doc) for doc in docs])
+    if agent_id:
+        return KnowledgeDocumentListResponse(items=[_to_read(doc, [agent_id]) for doc in docs])
+
+    mapping = _build_agent_ids_map(session, [doc.id for doc in docs])
+    return KnowledgeDocumentListResponse(items=[_to_read(doc, mapping.get(doc.id, [])) for doc in docs])
 
 
 def delete_document(session: Session, document_id: str) -> None:

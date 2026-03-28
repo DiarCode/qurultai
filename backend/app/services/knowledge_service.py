@@ -82,30 +82,12 @@ def upload_document(
     session.add(doc)
     session.commit()
     session.refresh(doc)
-    setattr(doc, "agent_ids", [agent.id] if agent is not None else [])
     return doc, chunks_ingested
-
-
-def _attach_agent_ids(session: Session, docs: list[KnowledgeDocument]) -> list[KnowledgeDocument]:
-    if not docs:
-        return docs
-
-    doc_ids = [doc.id for doc in docs]
-    links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.document_id.in_(doc_ids))))
-    mapping: dict[str, list[str]] = {}
-    for link in links:
-        mapping.setdefault(link.document_id, []).append(link.agent_id)
-
-    for doc in docs:
-        setattr(doc, "agent_ids", mapping.get(doc.id, []))
-
-    return docs
 
 
 def list_documents(session: Session, agent_id: str | None = None) -> list[KnowledgeDocument]:
     if not agent_id:
-        docs = list(session.exec(select(KnowledgeDocument).order_by(KnowledgeDocument.created_at.desc())))
-        return _attach_agent_ids(session, docs)
+        return list(session.exec(select(KnowledgeDocument).order_by(KnowledgeDocument.created_at.desc())))
 
     agent = session.get(Agent, agent_id)
     if agent is None:
@@ -113,22 +95,19 @@ def list_documents(session: Session, agent_id: str | None = None) -> list[Knowle
     links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.agent_id == agent_id)))
     if not links:
         return []
-    docs = list(
+    return list(
         session.exec(
             select(KnowledgeDocument)
             .where(KnowledgeDocument.id.in_([link.document_id for link in links]))
             .order_by(KnowledgeDocument.created_at.desc())
         )
     )
-    return _attach_agent_ids(session, docs)
 
 
 def get_document(session: Session, document_id: str) -> KnowledgeDocument:
     doc = session.get(KnowledgeDocument, document_id)
     if doc is None:
         raise NotFoundError(f"Knowledge document '{document_id}' was not found.")
-    links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.document_id == document_id)))
-    setattr(doc, "agent_ids", [link.agent_id for link in links])
     return doc
 
 

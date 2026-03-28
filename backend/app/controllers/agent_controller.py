@@ -53,7 +53,7 @@ def list_agent_documents(session: Session, agent_id: str) -> AgentDocumentsRespo
     items: list[KnowledgeDocumentRead] = []
     for doc in docs:
         data = KnowledgeDocumentRead.model_validate(doc).model_dump()
-        data["agent_ids"] = list(getattr(doc, "agent_ids", []))
+        data["agent_ids"] = [agent_id]
         items.append(KnowledgeDocumentRead(**data))
     return AgentDocumentsResponse(agent_id=agent_id, documents=items)
 
@@ -86,7 +86,7 @@ def upload_agent_document(
         title=payload.title,
     )
     data = KnowledgeDocumentRead.model_validate(doc).model_dump()
-    data["agent_ids"] = list(getattr(doc, "agent_ids", [agent_id]))
+    data["agent_ids"] = [agent_id]
     return KnowledgeDocumentUploadResponse(
         document=KnowledgeDocumentRead(**data),
         chunks_ingested=chunks_ingested,
