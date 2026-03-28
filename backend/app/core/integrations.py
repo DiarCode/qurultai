@@ -22,10 +22,10 @@ def get_minio_client():
     )
 
 
-def get_ollama_config() -> dict[str, str | float]:
+def get_openai_config() -> dict[str, str | float]:
     settings = get_settings()
     return {
-        "base_url": settings.OLLAMA_BASE_URL,
-        "model": settings.OLLAMA_MODEL,
-        "temperature": settings.OLLAMA_TEMPERATURE,
+        "base_url": settings.OPENAI_BASE_URL,
+        "model": settings.OPENAI_MODEL,
+        "temperature": settings.OPENAI_TEMPERATURE,
     }

@@ -12,6 +12,7 @@ from app.models.agent_run import AgentRun
 from app.models.agent_source import AgentSource
 from app.models.agent_step import AgentStep
 from app.models.room import Room
+from app.services import llm_service
 from app.services import rag_tool_service
 
 
@@ -35,25 +36,9 @@ def _extract_goals(text: str, top_n: int = 5) -> list[str]:
     return [word for word, _ in Counter(words).most_common(top_n)]
 
 
-def _invoke_ollama(prompt: str, system_prompt: str | None = None) -> str:
-    settings = get_settings()
+def _invoke_llm(prompt: str, system_prompt: str | None = None) -> str:
     try:
-        from langchain_ollama import ChatOllama
-
-        kwargs: dict[str, Any] = {
-            "model": settings.OLLAMA_MODEL,
-            "base_url": settings.OLLAMA_BASE_URL,
-            "temperature": settings.OLLAMA_TEMPERATURE,
-        }
-        client_kwargs: dict[str, Any] = {"timeout": settings.OLLAMA_TIMEOUT_SECONDS}
-        # Note: Ollama handles cloud auth internally via signature-based mechanism
-        # Do NOT use Bearer tokens - let Ollama sign requests automatically
-        kwargs["client_kwargs"] = client_kwargs
-
-        llm = ChatOllama(**kwargs)
-        final_prompt = prompt if not system_prompt else f"System: {system_prompt}\n\nUser: {prompt}"
-        response = llm.invoke(final_prompt)
-        return str(getattr(response, "content", "") or "").strip()
+        return llm_service.invoke_llm(prompt=prompt, system_prompt=system_prompt)
     except Exception:
         return ""
 
@@ -104,7 +89,7 @@ def _orchestrator_node(state: RoomGraphState) -> RoomGraphState:
         f"Request:\n{state['context_text']}"
         + extra_instruction
     )
-    content = _invoke_ollama(prompt)
+    content = _invoke_llm(prompt)
     goals = [line.strip().strip("-").strip() for line in content.splitlines() if line.strip()]
     state["mission_goals"] = goals[:5] if goals else fallback_goals
     return state
@@ -112,26 +97,25 @@ def _orchestrator_node(state: RoomGraphState) -> RoomGraphState:
 
 def _bidding_node(state: RoomGraphState) -> RoomGraphState:
     session = state["session"]
-    goals_text = ", ".join(state.get("mission_goals", []))
+    goals = state.get("mission_goals", [])
+    query_text = f"{state.get('user_input', '')} {' '.join(goals)}".lower()
 
     candidates = list(
         session.exec(select(Agent).where(Agent.status.in_(["active", "draft", "ACTIVE", "DRAFT"])))
     )
-    selected_ids: list[str] = []
+    if not candidates:
+        state["active_agent_ids"] = []
+        return state
 
+    scored: list[tuple[int, Agent]] = []
+    query_tokens = {token for token in query_text.split() if len(token) >= 4}
     for agent in candidates:
-        bid_prompt = (
-            f"Mission goals: {goals_text}\n"
-            f"Agent role: {agent.role_description}\n"
-            f"Agent prompt: {agent.system_prompt}\n\n"
-            "Should this agent participate? Answer only TRUE or FALSE."
-        )
-        bid = _invoke_ollama(bid_prompt).upper()
-        if "TRUE" in bid:
-            selected_ids.append(agent.id)
+        competency = f"{agent.role_description} {agent.system_prompt}".lower()
+        score = sum(1 for token in query_tokens if token in competency)
+        scored.append((score, agent))
 
-    if not selected_ids:
-        selected_ids = [agent.id for agent in candidates[:3]]
+    scored.sort(key=lambda item: item[0], reverse=True)
+    selected_ids = [agent.id for _score, agent in scored[:2]]
 
     state["active_agent_ids"] = selected_ids
     return state
@@ -158,7 +142,7 @@ def _specialist_node(state: RoomGraphState) -> RoomGraphState:
         session.add(run)
         session.flush()
 
-        thought = _invoke_ollama(
+        thought = _invoke_llm(
             prompt=f"Request: {state['user_input']}\nGoals: {goals}\nWrite a concise reasoning thought.",
             system_prompt=agent.system_prompt,
         )
@@ -212,7 +196,7 @@ def _specialist_node(state: RoomGraphState) -> RoomGraphState:
             f"RAG snippets: {tool_summary['top_snippets']}\n\n"
             "Write a compact markdown section with findings and recommendation."
         )
-        fragment = _invoke_ollama(fragment_prompt, system_prompt=agent.system_prompt)
+        fragment = _invoke_llm(fragment_prompt, system_prompt=agent.system_prompt)
         if not fragment:
             fragment = (
                 f"## {agent.name}\n"
@@ -241,7 +225,7 @@ def _critic_node(state: RoomGraphState) -> RoomGraphState:
         "Return first line as CONFLICT: TRUE or CONFLICT: FALSE and then a short reason.\n\n"
         f"Fragments:\n{state.get('agent_fragments', [])}"
     )
-    review = _invoke_ollama(prompt)
+    review = _invoke_llm(prompt)
     lowered = review.lower()
     has_conflict = "conflict: true" in lowered
 
@@ -269,7 +253,7 @@ def _consolidator_node(state: RoomGraphState) -> RoomGraphState:
         f"Specialist fragments:\n{state.get('agent_fragments', [])}\n\n"
         "Produce final markdown report with goals, tradeoffs, and critic conclusion."
     )
-    report = _invoke_ollama(prompt)
+    report = _invoke_llm(prompt)
     if not report:
         report = (
             "# Final Consolidated Report\n\n"

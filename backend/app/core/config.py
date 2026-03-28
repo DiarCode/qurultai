@@ -22,11 +22,11 @@ class Settings(BaseSettings):
     SKILLS_DIR: str = "data/skills"
     LANGGRAPH_MAX_STEPS: int = 25
 
-    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
-    OLLAMA_API_KEY: str | None = None
-    OLLAMA_MODEL: str = "qwen2.5:7b"
-    OLLAMA_TEMPERATURE: float = 0.1
-    OLLAMA_TIMEOUT_SECONDS: float = 20.0
+    OPENAI_API_KEY: str | None = None
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-5.4-nano"
+    OPENAI_TEMPERATURE: float = 0.1
+    OPENAI_TIMEOUT_SECONDS: float = 8.0
 
     QDRANT_URL: str = "http://127.0.0.1:6333"
     QDRANT_API_KEY: str | None = None

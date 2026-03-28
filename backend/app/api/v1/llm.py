@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas.common import ORMModel
-from app.services.llm_service import check_ollama_health
+from app.services.llm_service import check_openai_health
 
 
 class LLMHealthResponse(ORMModel):
@@ -16,5 +16,5 @@ router = APIRouter(prefix="/llm", tags=["llm"])
 
 @router.get("/health", response_model=LLMHealthResponse)
 def llm_health() -> LLMHealthResponse:
-    result = check_ollama_health()
+    result = check_openai_health()
     return LLMHealthResponse(**result)
