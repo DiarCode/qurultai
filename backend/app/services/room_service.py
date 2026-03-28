@@ -3,7 +3,6 @@ from __future__ import annotations
 import html
 import re
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,10 +17,23 @@ from app.models.agent_run import AgentRun
 from app.models.agent_source import AgentSource
 from app.models.agent_step import AgentStep
 from app.models.room import Room
+from app.db.session import SessionLocal
+from app.services import s3_service
 
 
 def create_room(session: Session, query: str) -> Room:
     room = Room(initial_query=query, status="OPEN")
+    session.add(room)
+    session.commit()
+    session.refresh(room)
+    return room
+
+
+def mark_room_processing(session: Session, room_id: str) -> Room:
+    room = session.get(Room, room_id)
+    if room is None:
+        raise NotFoundError(f"Room '{room_id}' was not found.")
+    room.status = "PROCESSING"
     session.add(room)
     session.commit()
     session.refresh(room)
@@ -102,124 +114,73 @@ def _artifact_paths(room_id: str) -> tuple[Path, Path]:
     return Path(reports_dir) / f"room_{room_id}.html", Path(reports_dir) / f"room_{room_id}.pdf"
 
 
+def _report_object_keys(room_id: str) -> tuple[str, str, str]:
+    settings = get_settings()
+    base = f"{settings.S3_REPORTS_PREFIX}/{room_id}"
+    return f"{base}/report.md", f"{base}/report.html", f"{base}/report.pdf"
+
+
 def room_thread_id(room_id: str) -> str:
     return f"thread_{room_id[:12]}"
 
 
 def _write_artifacts(room: Room, report_md: str) -> tuple[str, str | None]:
     html_path, pdf_path = _artifact_paths(room.id)
+    md_key, html_key, pdf_key = _report_object_keys(room.id)
 
     html_content = _render_html_from_markdown(report_md)
     html_path.write_text(html_content, encoding="utf-8")
+
+    try:
+        s3_service.upload_text(md_key, report_md, content_type="text/markdown")
+        s3_service.upload_text(html_key, html_content, content_type="text/html")
+    except Exception:
+        pass
 
     pdf_written = None
     try:
         from weasyprint import HTML  # type: ignore
 
         HTML(string=html_content).write_pdf(str(pdf_path))
-        pdf_written = str(pdf_path)
+        pdf_bytes = pdf_path.read_bytes()
+        try:
+            s3_service.upload_bytes(pdf_key, pdf_bytes, content_type="application/pdf")
+            pdf_written = s3_service.s3_uri(pdf_key)
+        except Exception:
+            pdf_written = str(pdf_path)
     except Exception:
         pdf_written = None
 
-    return str(html_path), pdf_written
+    try:
+        return s3_service.s3_uri(html_key), pdf_written
+    except Exception:
+        return str(html_path), pdf_written
 
 
-def run_room_workflow(session: Session, room_id: str, document_path: str | None = None) -> Room:
+def run_room_workflow(
+    session: Session,
+    room_id: str,
+    document_path: str | None = None,
+    context_text: str | None = None,
+) -> Room:
     room = session.get(Room, room_id)
     if room is None:
         raise NotFoundError(f"Room '{room_id}' was not found.")
 
     room.status = "PROCESSING"
 
-    context = room.initial_query
+    context = context_text or room.initial_query
     if document_path:
         parsed_text, _file_type = auto_parse_document(document_path)
-        context = f"{room.initial_query}\n\n{parsed_text}"
+        context = f"{context}\n\n{parsed_text}"
 
     room.context_text = context
-    room.mission_goals_json = _extract_goals(context)
 
-    active_agents = _select_agents(session, room.mission_goals_json, room.initial_query)
+    from app.services.langgraph_workflow import run_room_langgraph
 
-    fragments: list[str] = []
-    for agent in active_agents:
-        run = AgentRun(
-            room_id=room.id,
-            agent_id=agent.id,
-            status="THINKING",
-            bid_reason="Competency matched orchestrator goals",
-            started_at=utc_now(),
-        )
-        session.add(run)
-        session.flush()
-
-        log_step(
-            session,
-            run_id=run.id,
-            step_type="THOUGHT",
-            content={"text": f"I will analyze this room as {agent.name}."},
-        )
-
-        run.status = "ACTING"
-        session.add(run)
-        session.flush()
-
-        log_step(
-            session,
-            run_id=run.id,
-            step_type="TOOL_CALL",
-            content={"tool": "rag_search", "query": room.initial_query},
-        )
-
-        log_step(
-            session,
-            run_id=run.id,
-            step_type="TOOL_OUTPUT",
-            content={"result": f"Retrieved supporting context for {agent.name}."},
-            sources=[
-                {
-                    "source_type": "TOOL_RESULT",
-                    "ref_id": "context",
-                    "snippet": context[:220],
-                    "score": 0.85,
-                }
-            ],
-        )
-
-        run.status = "WRITING"
-        session.add(run)
-        session.flush()
-
-        fragment = (
-            f"## {agent.name}\n"
-            f"- Competency: {agent.role_description}\n"
-            f"- Findings: aligned with goals {', '.join(room.mission_goals_json[:3])}\n"
-            f"- Recommendation: include in consolidated compromise report.\n"
-        )
-        fragments.append(fragment)
-
-        log_step(
-            session,
-            run_id=run.id,
-            step_type="MD_FRAGMENT",
-            content={"markdown": fragment},
-        )
-
-        run.status = "DONE"
-        run.finished_at = utc_now()
-        session.add(run)
-
-    room.final_report_md = (
-        "# Final Consolidated Report\n\n"
-        f"Generated: {datetime.utcnow().isoformat()}Z\n"
-        f"Thread: {room_thread_id(room.id)}\n\n"
-        "## Mission Goals\n"
-        + "\n".join(f"- {g}" for g in room.mission_goals_json)
-        + "\n\n"
-        + "\n".join(fragments)
-        + "\n\n## Critic Conclusion\n"
-        + "All active specialists reached a compatible compromise."
-    )
+    mission_goals, final_report = run_room_langgraph(session, room, context)
+    room.mission_goals_json = mission_goals
+    room.final_report_md = final_report
 
     _write_artifacts(room, room.final_report_md)
     room.status = "COMPLETED"
@@ -228,6 +189,27 @@ def run_room_workflow(session: Session, room_id: str, document_path: str | None 
     session.commit()
     session.refresh(room)
     return room
+
+
+def process_room_workflow(
+    room_id: str,
+    document_path: str | None = None,
+    context_text: str | None = None,
+) -> None:
+    with SessionLocal() as session:
+        try:
+            run_room_workflow(session, room_id, document_path, context_text)
+        except Exception as exc:
+            room = session.get(Room, room_id)
+            if room is not None:
+                room.status = "FAILED"
+                room.final_report_md = (
+                    "# Failed Room Run\n\n"
+                    "The room workflow crashed before completion.\n\n"
+                    f"Error: {str(exc)}"
+                )
+                session.add(room)
+                session.commit()
 
 
 def get_room_status(session: Session, room_id: str) -> Room:
@@ -301,8 +283,47 @@ def chat_with_room(session: Session, room_id: str, query: str) -> str:
     )
 
 
-def get_room_artifacts(room_id: str) -> tuple[str, str | None]:
+def get_room_artifacts(room_id: str) -> tuple[str | None, str | None]:
+    _md_key, html_key, pdf_key = _report_object_keys(room_id)
+    try:
+        html_s3 = s3_service.s3_uri(html_key) if s3_service.object_exists(html_key) else None
+        pdf_s3 = s3_service.s3_uri(pdf_key) if s3_service.object_exists(pdf_key) else None
+        if html_s3 or pdf_s3:
+            return html_s3, pdf_s3
+    except Exception:
+        pass
+
     html_path, pdf_path = _artifact_paths(room_id)
     html_value = str(html_path) if html_path.exists() else None
     pdf_value = str(pdf_path) if pdf_path.exists() else None
     return html_value, pdf_value
+
+
+def get_room_result_documents(room_id: str) -> dict[str, str | None]:
+    md_key, html_key, pdf_key = _report_object_keys(room_id)
+
+    md_uri = s3_service.s3_uri(md_key) if s3_service.object_exists(md_key) else None
+    html_uri = s3_service.s3_uri(html_key) if s3_service.object_exists(html_key) else None
+
+    pdf_exists = s3_service.object_exists(pdf_key)
+    if not pdf_exists:
+        room = None
+        with SessionLocal() as session:
+            room = session.get(Room, room_id)
+            if room and room.final_report_md:
+                try:
+                    _write_artifacts(room, room.final_report_md)
+                except Exception:
+                    pass
+        pdf_exists = s3_service.object_exists(pdf_key)
+
+    pdf_uri = s3_service.s3_uri(pdf_key) if pdf_exists else None
+
+    return {
+        "report_md_s3_uri": md_uri,
+        "report_html_s3_uri": html_uri,
+        "report_pdf_s3_uri": pdf_uri,
+        "report_md_download_url": s3_service.make_presigned_get_url(md_key) if md_uri else None,
+        "report_html_download_url": s3_service.make_presigned_get_url(html_key) if html_uri else None,
+        "report_pdf_download_url": s3_service.make_presigned_get_url(pdf_key) if pdf_uri else None,
+    }

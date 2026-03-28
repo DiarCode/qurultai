@@ -4,8 +4,7 @@ from sqlmodel import Session, select
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.agent import Agent
-from app.models.document import Document
-from app.models.skill import Skill
+from app.models.knowledge_document import AgentKnowledgeLink, KnowledgeDocument
 from app.models.tool import Tool
 from app.schemas.agents import AgentCreate, AgentUpdate
 
@@ -19,24 +18,6 @@ def _get_tools(session: Session, tool_ids: list[str]) -> list[Tool]:
     return tools
 
 
-def _get_skills(session: Session, skill_ids: list[str]) -> list[Skill]:
-    if not skill_ids:
-        return []
-    skills = list(session.exec(select(Skill).where(Skill.id.in_(skill_ids))))
-    if len(skills) != len(set(skill_ids)):
-        raise NotFoundError("One or more skill IDs were not found.")
-    return skills
-
-
-def _get_documents(session: Session, document_ids: list[str]) -> list[Document]:
-    if not document_ids:
-        return []
-    docs = list(session.exec(select(Document).where(Document.id.in_(document_ids))))
-    if len(docs) != len(set(document_ids)):
-        raise NotFoundError("One or more document IDs were not found.")
-    return docs
-
-
 def create_agent(session: Session, payload: AgentCreate) -> Agent:
     existing = session.exec(select(Agent).where(Agent.key == payload.key)).first()
     if existing is not None:
@@ -47,13 +28,9 @@ def create_agent(session: Session, payload: AgentCreate) -> Agent:
         name=payload.name,
         role_description=payload.role_description,
         system_prompt=payload.system_prompt,
-        goals_json=payload.goals_json,
-        constraints_json=payload.constraints_json,
         status=payload.status,
     )
     agent.tools = _get_tools(session, payload.tool_ids)
-    agent.skills = _get_skills(session, payload.skill_ids)
-    agent.documents = _get_documents(session, payload.document_ids)
     session.add(agent)
     session.commit()
     session.refresh(agent)
@@ -75,20 +52,97 @@ def update_agent(session: Session, agent_id: str, payload: AgentUpdate) -> Agent
     agent = get_agent(session, agent_id)
     updates = payload.model_dump(exclude_unset=True)
     tool_ids = updates.pop("tool_ids", None)
-    skill_ids = updates.pop("skill_ids", None)
-    document_ids = updates.pop("document_ids", None)
 
     for field_name, value in updates.items():
         setattr(agent, field_name, value)
 
     if tool_ids is not None:
         agent.tools = _get_tools(session, tool_ids)
-    if skill_ids is not None:
-        agent.skills = _get_skills(session, skill_ids)
-    if document_ids is not None:
-        agent.documents = _get_documents(session, document_ids)
 
     session.add(agent)
     session.commit()
     session.refresh(agent)
     return agent
+
+
+def delete_agent(session: Session, agent_id: str) -> None:
+    agent = get_agent(session, agent_id)
+
+    links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.agent_id == agent_id)))
+    for link in links:
+        session.delete(link)
+
+    session.delete(agent)
+    session.commit()
+
+
+def list_agent_tools(session: Session, agent_id: str) -> list[Tool]:
+    agent = get_agent(session, agent_id)
+    return list(agent.tools)
+
+
+def add_agent_tool(session: Session, agent_id: str, tool_id: str) -> Agent:
+    agent = get_agent(session, agent_id)
+    tool = session.get(Tool, tool_id)
+    if tool is None:
+        raise NotFoundError(f"Tool '{tool_id}' was not found.")
+
+    if all(item.id != tool_id for item in agent.tools):
+        agent.tools.append(tool)
+        session.add(agent)
+        session.commit()
+        session.refresh(agent)
+    return agent
+
+
+def remove_agent_tool(session: Session, agent_id: str, tool_id: str) -> Agent:
+    agent = get_agent(session, agent_id)
+    agent.tools = [tool for tool in agent.tools if tool.id != tool_id]
+    session.add(agent)
+    session.commit()
+    session.refresh(agent)
+    return agent
+
+
+def list_agent_documents(session: Session, agent_id: str) -> list[KnowledgeDocument]:
+    get_agent(session, agent_id)
+    links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.agent_id == agent_id)))
+    if not links:
+        return []
+    return list(
+        session.exec(
+            select(KnowledgeDocument)
+            .where(KnowledgeDocument.id.in_([link.document_id for link in links]))
+            .order_by(KnowledgeDocument.created_at.desc())
+        )
+    )
+
+
+def link_document_to_agent(session: Session, agent_id: str, document_id: str) -> None:
+    get_agent(session, agent_id)
+    doc = session.get(KnowledgeDocument, document_id)
+    if doc is None:
+        raise NotFoundError(f"Knowledge document '{document_id}' was not found.")
+
+    existing = session.exec(
+        select(AgentKnowledgeLink).where(
+            AgentKnowledgeLink.agent_id == agent_id,
+            AgentKnowledgeLink.document_id == document_id,
+        )
+    ).first()
+    if existing is None:
+        session.add(AgentKnowledgeLink(agent_id=agent_id, document_id=document_id))
+        session.commit()
+
+
+def unlink_document_from_agent(session: Session, agent_id: str, document_id: str) -> None:
+    get_agent(session, agent_id)
+    link = session.exec(
+        select(AgentKnowledgeLink).where(
+            AgentKnowledgeLink.agent_id == agent_id,
+            AgentKnowledgeLink.document_id == document_id,
+        )
+    ).first()
+    if link is not None:
+        session.delete(link)
+        session.commit()

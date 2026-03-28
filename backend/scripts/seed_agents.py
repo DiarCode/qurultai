@@ -9,14 +9,19 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 from sqlmodel import Session, select
 
 from app.db.engine import engine
 from app.models.agent import Agent
-from app.models.skill import Skill
 from app.models.tool import Tool
 from app.services.database_service import initialize_database
+
+try:
+    from app.models.skill import Skill  # type: ignore
+except Exception:
+    Skill = None  # type: ignore[assignment]
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "data" / "skills"
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "data" / "prompts"
@@ -248,30 +253,33 @@ def seed() -> None:
 
     with Session(engine) as session:
         # -- Skills --
-        skill_map: dict[str, Skill] = {}
-        for skill_def in SKILLS:
-            existing = session.exec(
-                select(Skill).where(Skill.key == skill_def["key"])
-            ).first()
-            if existing:
-                print(f"  Skill '{skill_def['key']}' already exists, skipping.")
-                skill_map[skill_def["key"]] = existing
-                continue
+        skill_map: dict[str, Any] = {}
+        if Skill is None:
+            print("  Skill model is not available in current branch, skipping skills seeding.")
+        else:
+            for skill_def in SKILLS:
+                existing = session.exec(
+                    select(Skill).where(Skill.key == skill_def["key"])
+                ).first()
+                if existing:
+                    print(f"  Skill '{skill_def['key']}' already exists, skipping.")
+                    skill_map[skill_def["key"]] = existing
+                    continue
 
-            md_path = SKILLS_DIR / f"{skill_def['key']}.md"
-            content_md = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
+                md_path = SKILLS_DIR / f"{skill_def['key']}.md"
+                content_md = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
 
-            skill = Skill(
-                key=skill_def["key"],
-                name=skill_def["name"],
-                description=skill_def["description"],
-                content_md=content_md,
-                file_path=skill_def["file_path"],
-            )
-            session.add(skill)
-            session.flush()
-            skill_map[skill_def["key"]] = skill
-            print(f"  + Skill '{skill_def['key']}' created.")
+                skill = Skill(
+                    key=skill_def["key"],
+                    name=skill_def["name"],
+                    description=skill_def["description"],
+                    content_md=content_md,
+                    file_path=skill_def["file_path"],
+                )
+                session.add(skill)
+                session.flush()
+                skill_map[skill_def["key"]] = skill
+                print(f"  + Skill '{skill_def['key']}' created.")
 
         # -- Tools --
         tool_map: dict[str, Tool] = {}
@@ -287,8 +295,8 @@ def seed() -> None:
             tool = Tool(
                 name=tool_def["name"],
                 description=tool_def["description"],
-                tool_type=tool_def["tool_type"],
                 input_schema_json=tool_def["input_schema_json"],
+                endpoint_url=None,
             )
             session.add(tool)
             session.flush()
@@ -315,15 +323,16 @@ def seed() -> None:
                 constraints_json=agent_def["constraints"],
                 status="active",
             )
-            agent.skills = [
-                skill_map[sk] for sk in agent_def["skills"] if sk in skill_map
-            ]
+            if hasattr(agent, "skills"):
+                agent.skills = [
+                    skill_map[sk] for sk in agent_def["skills"] if sk in skill_map
+                ]
             agent.tools = [
                 tool_map[tl] for tl in agent_def["tools"] if tl in tool_map
             ]
             session.add(agent)
             print(f"  + Agent '{agent_def['key']}' created "
-                  f"(skills={len(agent.skills)}, tools={len(agent.tools)}).")
+                  f"(skills={len(getattr(agent, 'skills', []))}, tools={len(agent.tools)}).")
 
         session.commit()
         print("\nSeed completed successfully.")
