@@ -23,6 +23,7 @@ def ensure_runtime_directories() -> None:
     ensure_directory(settings.sqlite_dir_path)
     ensure_directory(settings.uploads_dir_path)
     ensure_directory(settings.reports_dir_path)
+    ensure_directory(settings.skills_dir_path)
 
 
 def initialize_database() -> DatabaseStatus:

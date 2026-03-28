@@ -12,6 +12,8 @@ from app.services import knowledge_service
 def _to_read_model(agent) -> AgentRead:
     data = AgentRead.model_validate(agent).model_dump()
     data["tool_ids"] = [tool.id for tool in agent.tools]
+    data["skill_ids"] = [skill.id for skill in agent.skills]
+    data["document_ids"] = [doc.id for doc in agent.documents]
     return AgentRead(**data)
 
 
