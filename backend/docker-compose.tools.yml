@@ -12,6 +12,9 @@ services:
     container_name: qurultai-ollama
     ports:
       - "11434:11434"
+    environment:
+      OLLAMA_NO_CLOUD: "false"
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY}
     volumes:
       - ollama_data:/root/.ollama
 

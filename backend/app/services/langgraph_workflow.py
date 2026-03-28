@@ -46,8 +46,8 @@ def _invoke_ollama(prompt: str, system_prompt: str | None = None) -> str:
             "temperature": settings.OLLAMA_TEMPERATURE,
         }
         client_kwargs: dict[str, Any] = {"timeout": settings.OLLAMA_TIMEOUT_SECONDS}
-        if settings.OLLAMA_API_KEY:
-            client_kwargs["headers"] = {"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"}
+        # Note: Ollama handles cloud auth internally via signature-based mechanism
+        # Do NOT use Bearer tokens - let Ollama sign requests automatically
         kwargs["client_kwargs"] = client_kwargs
 
         llm = ChatOllama(**kwargs)
