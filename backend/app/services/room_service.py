@@ -240,10 +240,10 @@ def get_room_trace(session: Session, room_id: str) -> dict[str, Any]:
                         {
                             "source_type": s.source_type,
                             "ref_id": s.ref_id,
-                            "document_id": s.document_id,
-                            "title": s.title,
+                            "document_id": getattr(s, "document_id", None),
+                            "title": getattr(s, "title", None),
                             "snippet": s.snippet,
-                            "page_number": s.page_number,
+                            "page_number": getattr(s, "page_number", None),
                             "score": s.score,
                         }
                         for s in sources

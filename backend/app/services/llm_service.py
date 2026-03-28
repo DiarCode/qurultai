@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from langchain_ollama import ChatOllama
+from openai import OpenAI
 
 from app.core.config import get_settings
 
@@ -11,26 +11,28 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def get_llm() -> ChatOllama:
+def get_llm() -> OpenAI:
     settings = get_settings()
-    kwargs: dict = {
-        "base_url": settings.OLLAMA_BASE_URL,
-        "model": settings.OLLAMA_MODEL,
-        "temperature": settings.OLLAMA_TEMPERATURE,
-    }
-    if settings.OLLAMA_API_KEY:
-        kwargs["api_key"] = settings.OLLAMA_API_KEY
-    return ChatOllama(**kwargs)
+    return OpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL,
+        timeout=settings.OPENAI_TIMEOUT_SECONDS,
+    )
 
 
 def invoke_llm(prompt: str, system_prompt: str | None = None) -> str:
-    llm = get_llm()
+    client = get_llm()
+    settings = get_settings()
     messages = []
     if system_prompt:
-        messages.append(("system", system_prompt))
-    messages.append(("human", prompt))
-    response = llm.invoke(messages)
-    return str(response.content)
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+    response = client.chat.completions.create(
+        model=settings.OPENAI_MODEL,
+        temperature=settings.OPENAI_TEMPERATURE,
+        messages=messages,
+    )
+    return str((response.choices[0].message.content or "").strip())
 
 
 def invoke_llm_with_context(
@@ -39,7 +41,8 @@ def invoke_llm_with_context(
     context: str | None = None,
     skills_content: list[str] | None = None,
 ) -> str:
-    llm = get_llm()
+    client = get_llm()
+    settings = get_settings()
     messages = []
 
     full_system = system_prompt or ""
@@ -51,17 +54,28 @@ def invoke_llm_with_context(
         full_system += f"\n\n## Context\n{context}"
 
     if full_system.strip():
-        messages.append(("system", full_system))
-    messages.append(("human", prompt))
+        messages.append({"role": "system", "content": full_system})
+    messages.append({"role": "user", "content": prompt})
 
-    response = llm.invoke(messages)
-    return str(response.content)
+    response = client.chat.completions.create(
+        model=settings.OPENAI_MODEL,
+        temperature=settings.OPENAI_TEMPERATURE,
+        messages=messages,
+    )
+    return str((response.choices[0].message.content or "").strip())
 
 
-def check_ollama_health() -> dict:
+def check_openai_health() -> dict:
     try:
-        llm = get_llm()
-        response = llm.invoke([("human", "ping")])
-        return {"status": "ok", "model": get_settings().OLLAMA_MODEL, "response": str(response.content)[:50]}
+        client = get_llm()
+        settings = get_settings()
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=8,
+            temperature=0,
+        )
+        text = str((response.choices[0].message.content or "").strip())
+        return {"status": "ok", "model": settings.OPENAI_MODEL, "response": text[:50]}
     except Exception as e:
-        return {"status": "error", "model": get_settings().OLLAMA_MODEL, "error": str(e)}
+        return {"status": "error", "model": get_settings().OPENAI_MODEL, "error": str(e)}

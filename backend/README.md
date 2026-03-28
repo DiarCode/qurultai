@@ -43,27 +43,33 @@ POST /api/v1/knowledge/documents/upload
 
 ## Docker local stack
 
-`docker-compose.yml` includes:
-- backend (FastAPI)
+`docker-compose.yml` includes tools only:
 - qdrant
-- ollama
 - minio (S3-compatible)
 
 Start everything:
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
-Pull model for Ollama (inside container):
+Run backend separately:
 
 ```bash
-docker exec -it qurultai-ollama ollama pull qwen2.5:7b
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+OpenAI configuration (in `.env`):
+
+```bash
+OPENAI_API_KEY=<your key>
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Useful endpoints:
 - Backend: `http://127.0.0.1:8000`
 - Qdrant: `http://127.0.0.1:6333`
-- Ollama: `http://127.0.0.1:11434`
 - MinIO API: `http://127.0.0.1:9000`
 - MinIO Console: `http://127.0.0.1:9001`

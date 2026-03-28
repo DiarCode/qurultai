@@ -18,8 +18,8 @@ RUN pip install --no-cache-dir \
     sentence-transformers \
     httpx \
     langchain \
-    langchain-ollama \
     langgraph \
+    openai \
     qdrant-client \
     minio
 
