@@ -29,6 +29,4 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     content_md: str = Field(default="")
     file_path: str | None = Field(default=None, max_length=1024)
 
-    agents: list["Agent"] = Relationship(
-        back_populates="skills", link_model=AgentSkillLink
-    )
+    agents: list["Agent"] = Relationship(back_populates="skills", link_model=AgentSkillLink)

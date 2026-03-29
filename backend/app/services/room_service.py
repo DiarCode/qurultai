@@ -4,21 +4,19 @@ import html
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlmodel import Session, select
 
-from app.core.config import get_settings
 from app.core.document_parser import auto_parse_document
 from app.core.exceptions import NotFoundError
-from app.core.utils import ensure_directory, utc_now
+from app.db.session import SessionLocal
 from app.models.agent import Agent
 from app.models.agent_run import AgentRun
 from app.models.agent_source import AgentSource
 from app.models.agent_step import AgentStep
 from app.models.room import Room
-from app.db.session import SessionLocal
-from app.services import s3_service
+from app.services import report_service, s3_service
 
 
 def create_room(session: Session, query: str) -> Room:
@@ -46,7 +44,9 @@ def _extract_goals(text: str, top_n: int = 5) -> list[str]:
 
 
 def _select_agents(session: Session, goals: list[str], query: str) -> list[Agent]:
-    agents = list(session.exec(select(Agent).where(Agent.status.in_(["active", "draft", "ACTIVE", "DRAFT"]))))
+    agents = list(
+        session.exec(select(Agent).where(Agent.status.in_(["active", "draft", "ACTIVE", "DRAFT"])))
+    )
     if not agents:
         return []
 
@@ -109,15 +109,11 @@ def _render_html_from_markdown(markdown_text: str) -> str:
 
 
 def _artifact_paths(room_id: str) -> tuple[Path, Path]:
-    settings = get_settings()
-    reports_dir = ensure_directory(settings.reports_dir_path)
-    return Path(reports_dir) / f"room_{room_id}.html", Path(reports_dir) / f"room_{room_id}.pdf"
+    return report_service.artifact_paths(room_id)
 
 
 def _report_object_keys(room_id: str) -> tuple[str, str, str]:
-    settings = get_settings()
-    base = f"{settings.S3_REPORTS_PREFIX}/{room_id}"
-    return f"{base}/report.md", f"{base}/report.html", f"{base}/report.pdf"
+    return report_service.report_object_keys(room_id)
 
 
 def room_thread_id(room_id: str) -> str:
@@ -125,36 +121,7 @@ def room_thread_id(room_id: str) -> str:
 
 
 def _write_artifacts(room: Room, report_md: str) -> tuple[str, str | None]:
-    html_path, pdf_path = _artifact_paths(room.id)
-    md_key, html_key, pdf_key = _report_object_keys(room.id)
-
-    html_content = _render_html_from_markdown(report_md)
-    html_path.write_text(html_content, encoding="utf-8")
-
-    try:
-        s3_service.upload_text(md_key, report_md, content_type="text/markdown")
-        s3_service.upload_text(html_key, html_content, content_type="text/html")
-    except Exception:
-        pass
-
-    pdf_written = None
-    try:
-        from weasyprint import HTML  # type: ignore
-
-        HTML(string=html_content).write_pdf(str(pdf_path))
-        pdf_bytes = pdf_path.read_bytes()
-        try:
-            s3_service.upload_bytes(pdf_key, pdf_bytes, content_type="application/pdf")
-            pdf_written = s3_service.s3_uri(pdf_key)
-        except Exception:
-            pdf_written = str(pdf_path)
-    except Exception:
-        pdf_written = None
-
-    try:
-        return s3_service.s3_uri(html_key), pdf_written
-    except Exception:
-        return str(html_path), pdf_written
+    return report_service.write_report_artifacts(room.id, report_md, title="Council Report")
 
 
 def run_room_workflow(
@@ -222,11 +189,23 @@ def get_room_status(session: Session, room_id: str) -> Room:
 def get_room_trace(session: Session, room_id: str) -> dict[str, Any]:
     room = get_room_status(session, room_id)
 
-    runs = list(session.exec(select(AgentRun).where(AgentRun.room_id == room_id).order_by(AgentRun.started_at)))
+    runs = list(
+        session.exec(
+            select(AgentRun)
+            .where(AgentRun.room_id == room_id)
+            .order_by(cast(Any, AgentRun.started_at))
+        )
+    )
     run_payload: list[dict[str, Any]] = []
 
     for run in runs:
-        steps = list(session.exec(select(AgentStep).where(AgentStep.run_id == run.id).order_by(AgentStep.created_at)))
+        steps = list(
+            session.exec(
+                select(AgentStep)
+                .where(AgentStep.run_id == run.id)
+                .order_by(cast(Any, AgentStep.created_at))
+            )
+        )
         step_payload: list[dict[str, Any]] = []
         for step in steps:
             sources = list(session.exec(select(AgentSource).where(AgentSource.step_id == step.id)))
@@ -324,6 +303,8 @@ def get_room_result_documents(room_id: str) -> dict[str, str | None]:
         "report_html_s3_uri": html_uri,
         "report_pdf_s3_uri": pdf_uri,
         "report_md_download_url": s3_service.make_presigned_get_url(md_key) if md_uri else None,
-        "report_html_download_url": s3_service.make_presigned_get_url(html_key) if html_uri else None,
+        "report_html_download_url": s3_service.make_presigned_get_url(html_key)
+        if html_uri
+        else None,
         "report_pdf_download_url": s3_service.make_presigned_get_url(pdf_key) if pdf_uri else None,
     }

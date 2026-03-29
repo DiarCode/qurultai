@@ -7,6 +7,14 @@ from app.core.integrations import get_qdrant_client
 from app.services.embedding_service import embed_query, embed_texts
 
 
+def _coerce_optional_int(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, str)):
+        return int(value)
+    return None
+
+
 def _collection_name() -> str:
     return get_settings().QDRANT_COLLECTION
 
@@ -25,11 +33,21 @@ def ensure_collection() -> None:
 
     client.create_collection(
         collection_name=_collection_name(),
-        vectors_config=rest.VectorParams(size=settings.EMBEDDING_DIMENSION, distance=rest.Distance.COSINE),
+        vectors_config=rest.VectorParams(
+            size=settings.EMBEDDING_DIMENSION, distance=rest.Distance.COSINE
+        ),
     )
 
 
-def ingest_document_chunks(document_id: str, agent_id: str | None, chunks: list[str], s3_key: str) -> int:
+def ingest_document_chunks(
+    document_id: str,
+    agent_id: str | None,
+    chunks: list[str],
+    s3_key: str,
+    *,
+    title: str | None = None,
+    mime_type: str | None = None,
+) -> int:
     if not chunks:
         return 0
 
@@ -40,7 +58,8 @@ def ingest_document_chunks(document_id: str, agent_id: str | None, chunks: list[
     from qdrant_client.http import models as rest
 
     points = []
-    for chunk, vector in zip(chunks, vectors, strict=False):
+    chunk_count = len(chunks)
+    for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=False), start=1):
         points.append(
             rest.PointStruct(
                 id=str(uuid4()),
@@ -48,8 +67,13 @@ def ingest_document_chunks(document_id: str, agent_id: str | None, chunks: list[
                 payload={
                     "document_id": document_id,
                     "agent_id": agent_id,
+                    "title": title,
+                    "mime_type": mime_type,
                     "text": chunk,
                     "s3_key": s3_key,
+                    "chunk_index": index,
+                    "chunk_count": chunk_count,
+                    "location": f"Chunk {index} of {chunk_count}",
                 },
             )
         )
@@ -72,7 +96,11 @@ def delete_document_points(document_id: str) -> None:
     client.delete(collection_name=_collection_name(), points_selector=selector)
 
 
-def search(query: str, limit: int = 5, agent_id: str | None = None) -> list[dict[str, str | float | None]]:
+def search(
+    query: str,
+    limit: int = 5,
+    agent_id: str | None = None,
+) -> list[dict[str, str | float | int | None]]:
     ensure_collection()
     client = get_qdrant_client()
     vector = embed_query(query)
@@ -108,9 +136,14 @@ def search(query: str, limit: int = 5, agent_id: str | None = None) -> list[dict
             {
                 "document_id": str(data.get("document_id") or ""),
                 "agent_id": str(data.get("agent_id") or "") if data.get("agent_id") else None,
+                "title": str(data.get("title") or "") if data.get("title") else None,
+                "mime_type": str(data.get("mime_type") or "") if data.get("mime_type") else None,
                 "text": str(data.get("text") or ""),
                 "s3_key": str(data.get("s3_key") or ""),
                 "score": float(hit.score or 0.0),
+                "chunk_index": _coerce_optional_int(data.get("chunk_index")),
+                "chunk_count": _coerce_optional_int(data.get("chunk_count")),
+                "location": str(data.get("location") or "") if data.get("location") else None,
             }
         )
 

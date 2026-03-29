@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, TypedDict
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
@@ -12,8 +13,14 @@ from app.models.agent_run import AgentRun
 from app.models.agent_source import AgentSource
 from app.models.agent_step import AgentStep
 from app.models.room import Room
-from app.services import llm_service
-from app.services import rag_tool_service
+from app.schemas.structured_outputs import (
+    ConsolidatedReportPayload,
+    CriticDecision,
+    GoalPlan,
+    LangGraphBidPlan,
+    SpecialistAnalysis,
+)
+from app.services import llm_service, rag_tool_service
 
 
 class RoomGraphState(TypedDict):
@@ -41,6 +48,23 @@ def _invoke_llm(prompt: str, system_prompt: str | None = None) -> str:
         return llm_service.invoke_llm(prompt=prompt, system_prompt=system_prompt)
     except Exception:
         return ""
+
+
+def _invoke_structured(
+    response_model: type[Any],
+    *,
+    prompt: str,
+    system_prompt: str | None = None,
+) -> Any | None:
+    try:
+        model = llm_service.get_langchain_chat_model().with_structured_output(response_model)
+        messages = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+        return model.invoke(messages)
+    except Exception:
+        return None
 
 
 def _log_step(
@@ -86,11 +110,16 @@ def _orchestrator_node(state: RoomGraphState) -> RoomGraphState:
     prompt = (
         "Break this request into 3-5 measurable mission goals. "
         "Return one bullet per line.\n\n"
-        f"Request:\n{state['context_text']}"
-        + extra_instruction
+        f"Request:\n{state['context_text']}" + extra_instruction
     )
-    content = _invoke_llm(prompt)
-    goals = [line.strip().strip("-").strip() for line in content.splitlines() if line.strip()]
+    structured = _invoke_structured(
+        GoalPlan,
+        prompt=prompt,
+        system_prompt=(
+            "You are the LangGraph mission planner. Return 3-5 measurable mission goals."
+        ),
+    )
+    goals = list(structured.mission_goals) if structured is not None else []
     state["mission_goals"] = goals[:5] if goals else fallback_goals
     return state
 
@@ -115,7 +144,24 @@ def _bidding_node(state: RoomGraphState) -> RoomGraphState:
         scored.append((score, agent))
 
     scored.sort(key=lambda item: item[0], reverse=True)
-    selected_ids = [agent.id for _score, agent in scored[:2]]
+    fallback_ids = [agent.id for _score, agent in scored[:2]]
+    structured = _invoke_structured(
+        LangGraphBidPlan,
+        prompt=(
+            "Select the best specialist agent IDs for the request.\n\n"
+            f"User input: {state.get('user_input', '')}\n"
+            f"Mission goals: {goals}\n"
+            f"Candidate IDs: {[agent.id for _score, agent in scored]}\n"
+            f"Candidate summaries: {[{'id': agent.id, 'key': agent.key, 'role': agent.role_description} for _score, agent in scored]}"
+        ),
+        system_prompt=(
+            "You are the LangGraph bidding router. Return only the most relevant one or two agent IDs."
+        ),
+    )
+    selected_ids = [
+        agent_id for agent_id in (structured.selected_agent_ids if structured is not None else [])
+        if any(agent.id == agent_id for _score, agent in scored)
+    ] or fallback_ids
 
     state["active_agent_ids"] = selected_ids
     return state
@@ -196,17 +242,30 @@ def _specialist_node(state: RoomGraphState) -> RoomGraphState:
             f"RAG snippets: {tool_summary['top_snippets']}\n\n"
             "Write a compact markdown section with findings and recommendation."
         )
-        fragment = _invoke_llm(fragment_prompt, system_prompt=agent.system_prompt)
-        if not fragment:
+        structured = _invoke_structured(
+            SpecialistAnalysis,
+            prompt=fragment_prompt,
+            system_prompt=agent.system_prompt,
+        )
+        if structured is not None:
             fragment = (
                 f"## {agent.name}\n"
-                f"- Competency: {agent.role_description}\n"
-                f"- Findings: aligned with goals {', '.join(goals[:3])}\n"
-                "- Recommendation: include in consolidated compromise report.\n"
+                f"- Summary: {structured.summary}\n"
+                + "".join(f"- Finding: {item}\n" for item in structured.key_findings[:3])
+                + "".join(f"- Risk: {item}\n" for item in structured.risks[:3])
+                + f"- Recommendation: {structured.recommendation}\n"
             )
-
-        if not fragment.startswith("## "):
-            fragment = f"## {agent.name}\n" + fragment
+        else:
+            fragment = _invoke_llm(fragment_prompt, system_prompt=agent.system_prompt)
+            if not fragment:
+                fragment = (
+                    f"## {agent.name}\n"
+                    f"- Competency: {agent.role_description}\n"
+                    f"- Findings: aligned with goals {', '.join(goals[:3])}\n"
+                    "- Recommendation: include in consolidated compromise report.\n"
+                )
+            if not fragment.startswith("## "):
+                fragment = f"## {agent.name}\n" + fragment
 
         _log_step(session, run_id=run.id, step_type="MD_FRAGMENT", content={"markdown": fragment})
         fragments.append(fragment)
@@ -225,13 +284,22 @@ def _critic_node(state: RoomGraphState) -> RoomGraphState:
         "Return first line as CONFLICT: TRUE or CONFLICT: FALSE and then a short reason.\n\n"
         f"Fragments:\n{state.get('agent_fragments', [])}"
     )
-    review = _invoke_llm(prompt)
-    lowered = review.lower()
-    has_conflict = "conflict: true" in lowered
+    structured = _invoke_structured(
+        CriticDecision,
+        prompt=prompt,
+        system_prompt=(
+            "You are the LangGraph critic. Decide if the specialist fragments materially conflict."
+        ),
+    )
+    review = structured.reason if structured is not None else _invoke_llm(prompt)
+    has_conflict = structured.has_conflict if structured is not None else "conflict: true" in review.lower()
 
     if not review:
         contradiction_tokens = ["contradict", "incompatible", "cannot both"]
-        has_conflict = any(token in "\n".join(state.get("agent_fragments", [])).lower() for token in contradiction_tokens)
+        has_conflict = any(
+            token in "\n".join(state.get("agent_fragments", [])).lower()
+            for token in contradiction_tokens
+        )
         review = "Auto-critic fallback decision based on contradiction token scan."
 
     state["has_conflict"] = has_conflict
@@ -253,18 +321,43 @@ def _consolidator_node(state: RoomGraphState) -> RoomGraphState:
         f"Specialist fragments:\n{state.get('agent_fragments', [])}\n\n"
         "Produce final markdown report with goals, tradeoffs, and critic conclusion."
     )
-    report = _invoke_llm(prompt)
-    if not report:
+    structured = _invoke_structured(
+        ConsolidatedReportPayload,
+        prompt=prompt,
+        system_prompt=(
+            "You are the LangGraph consolidator. Produce a concise final report structure."
+        ),
+    )
+    if structured is not None:
         report = (
-            "# Final Consolidated Report\n\n"
+            f"# {structured.title}\n\n"
             f"Generated: {utc_now().isoformat()}\n\n"
+            "## Executive Summary\n"
+            f"{structured.executive_summary}\n\n"
             "## Mission Goals\n"
-            + "\n".join(f"- {goal}" for goal in state.get("mission_goals", []))
-            + "\n\n"
-            + "\n".join(state.get("agent_fragments", []))
+            + "\n".join(f"- {goal}" for goal in (structured.mission_goals or state.get("mission_goals", [])))
+            + "\n\n## Tradeoffs\n"
+            + ("\n".join(f"- {item}" for item in structured.tradeoffs) or "- No major tradeoffs recorded.")
+            + "\n\n## Recommendations\n"
+            + ("\n".join(f"- {item}" for item in structured.recommendations) or "- No recommendations generated.")
+            + "\n\n## Specialist Fragments\n"
+            + "\n\n".join(state.get("agent_fragments", []))
             + "\n\n## Critic Conclusion\n"
-            + "Specialist outputs were synthesized without unresolved contradictions."
+            + state.get("critic_note", "No unresolved contradictions.")
         )
+    else:
+        report = _invoke_llm(prompt)
+        if not report:
+            report = (
+                "# Final Consolidated Report\n\n"
+                f"Generated: {utc_now().isoformat()}\n\n"
+                "## Mission Goals\n"
+                + "\n".join(f"- {goal}" for goal in state.get("mission_goals", []))
+                + "\n\n"
+                + "\n".join(state.get("agent_fragments", []))
+                + "\n\n## Critic Conclusion\n"
+                + "Specialist outputs were synthesized without unresolved contradictions."
+            )
     state["final_report_md"] = report
     return state
 

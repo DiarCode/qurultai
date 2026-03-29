@@ -36,8 +36,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Live integration test for all backend endpoints.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/api/v1", help="Base API URL")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout")
-    parser.add_argument("--poll-attempts", type=int, default=240, help="Workflow status polling attempts")
-    parser.add_argument("--poll-interval", type=float, default=0.5, help="Workflow status polling interval")
+    parser.add_argument(
+        "--poll-attempts", type=int, default=240, help="Workflow status polling attempts"
+    )
+    parser.add_argument(
+        "--poll-interval", type=float, default=0.5, help="Workflow status polling interval"
+    )
     return parser.parse_args()
 
 
@@ -53,7 +57,9 @@ def _safe_call(state: RunState, name: str, fn):
 
 def _expect_status(response: httpx.Response, expected: int) -> None:
     if response.status_code != expected:
-        raise RuntimeError(f"expected {expected}, got {response.status_code}, body={response.text[:500]}")
+        raise RuntimeError(
+            f"expected {expected}, got {response.status_code}, body={response.text[:500]}"
+        )
 
 
 def main() -> int:
@@ -85,7 +91,10 @@ def main() -> int:
                 json={
                     "name": f"e2e_tool_{suffix}",
                     "description": "e2e tool",
-                    "input_schema_json": {"type": "object", "properties": {"query": {"type": "string"}}},
+                    "input_schema_json": {
+                        "type": "object",
+                        "properties": {"query": {"type": "string"}},
+                    },
                 },
             )
             _expect_status(res, 201)
@@ -112,7 +121,9 @@ def main() -> int:
         def update_tool():
             if not tool_id:
                 raise RuntimeError("tool_id is missing")
-            res = client.patch(f"{args.base_url}/tools/{tool_id}", json={"description": "e2e tool updated"})
+            res = client.patch(
+                f"{args.base_url}/tools/{tool_id}", json={"description": "e2e tool updated"}
+            )
             _expect_status(res, 200)
 
         _safe_call(state, "tools.update", update_tool)
@@ -157,7 +168,9 @@ def main() -> int:
         def update_agent():
             if not agent_id:
                 raise RuntimeError("agent_id is missing")
-            res = client.patch(f"{args.base_url}/agents/{agent_id}", json={"name": "E2E Agent Updated"})
+            res = client.patch(
+                f"{args.base_url}/agents/{agent_id}", json={"name": "E2E Agent Updated"}
+            )
             _expect_status(res, 200)
 
         _safe_call(state, "agents.update", update_agent)
@@ -191,7 +204,9 @@ def main() -> int:
         def list_knowledge_documents():
             res = client.get(f"{args.base_url}/knowledge/documents")
             _expect_status(res, 200)
-            if document_id and not any(item["id"] == document_id for item in res.json().get("items", [])):
+            if document_id and not any(
+                item["id"] == document_id for item in res.json().get("items", [])
+            ):
                 raise RuntimeError("uploaded document not in list")
 
         _safe_call(state, "knowledge.list", list_knowledge_documents)

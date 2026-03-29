@@ -1,6 +1,7 @@
 """
 Document Parsing: PDF, DOCX, and OCR support
 """
+
 import os
 from typing import Tuple
 

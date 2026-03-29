@@ -17,7 +17,9 @@ defineEmits<{ action: [] }>()
 </script>
 
 <template>
-  <div class="elevated-glass flex flex-col items-center justify-center gap-6 px-8 py-14 text-center">
+  <div
+    class="elevated-glass flex flex-col items-center justify-center gap-6 px-8 py-14 text-center"
+  >
     <div class="ornament-ring flex size-18 items-center justify-center text-slate-900">
       <AppIcon :name="icon" :size="28" />
     </div>
@@ -29,12 +31,7 @@ defineEmits<{ action: [] }>()
         {{ description }}
       </p>
     </div>
-    <Button
-      v-if="actionLabel"
-      variant="outline"
-      class="rounded-full px-6"
-      @click="$emit('action')"
-    >
+    <Button v-if="actionLabel" variant="outline" class="rounded-full px-6" @click="$emit('action')">
       {{ actionLabel }}
     </Button>
   </div>

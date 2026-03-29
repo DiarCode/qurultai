@@ -1,7 +1,5 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 
-import { agents } from '@/data/council'
-
 export interface RouteSeoMeta {
   title: string
   description: string
@@ -33,20 +31,6 @@ function upsertMeta(selector: string, attributes: Record<string, string>) {
 
 function resolveRouteSeo(route: RouteLocationNormalizedLoaded): RouteSeoMeta {
   const routeSeo = route.meta as Partial<RouteSeoMeta>
-
-  if (route.name === 'agent-details') {
-    const agentId = String(route.params.id ?? '')
-    const agent = agents.find((entry) => entry.id === agentId)
-
-    if (agent) {
-      return {
-        title: `${agent.name} — агент совета Qurultai`,
-        description: `${agent.role}. ${agent.description}`,
-        keywords: `${defaultSeo.keywords}, ${agent.name}, ${agent.role}, ${agent.focus}`,
-        type: 'article',
-      }
-    }
-  }
 
   return {
     ...defaultSeo,

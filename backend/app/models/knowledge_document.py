@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import JSON, UniqueConstraint
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, SQLModel
 
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 
@@ -24,4 +26,4 @@ class KnowledgeDocument(UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     s3_bucket: str = Field(max_length=255)
     s3_key: str = Field(max_length=1024, unique=True)
     text_preview: str | None = Field(default=None)
-    metadata_json: dict[str, str] = Field(default_factory=dict, sa_type=JSON)
+    metadata_json: dict[str, Any] = Field(default_factory=dict, sa_type=JSON)

@@ -100,9 +100,7 @@ def delete_skill(session: Session, skill_id: str) -> None:
     session.commit()
 
 
-def attach_skills_to_agent(
-    session: Session, agent_id: str, skill_ids: list[str]
-) -> Agent:
+def attach_skills_to_agent(session: Session, agent_id: str, skill_ids: list[str]) -> Agent:
     agent = session.get(Agent, agent_id)
     if agent is None:
         raise NotFoundError(f"Agent '{agent_id}' was not found.")
@@ -121,9 +119,7 @@ def attach_skills_to_agent(
     return agent
 
 
-def detach_skills_from_agent(
-    session: Session, agent_id: str, skill_ids: list[str]
-) -> Agent:
+def detach_skills_from_agent(session: Session, agent_id: str, skill_ids: list[str]) -> Agent:
     agent = session.get(Agent, agent_id)
     if agent is None:
         raise NotFoundError(f"Agent '{agent_id}' was not found.")
@@ -146,10 +142,12 @@ def get_agent_skills_content(session: Session, agent_id: str) -> list[dict[str, 
         content = skill.content_md
         if not content and skill.file_path:
             content = _read_skill_file(skill.file_path)
-        results.append({
-            "skill_id": skill.id,
-            "key": skill.key,
-            "name": skill.name,
-            "content_md": content or "",
-        })
+        results.append(
+            {
+                "skill_id": skill.id,
+                "key": skill.key,
+                "name": skill.name,
+                "content_md": content or "",
+            }
+        )
     return results

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-import type { AgentSkill } from '@/types/council'
+import type { SkillRecord } from '@/types/council'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,8 +18,8 @@ import AppIcon from './AppIcon.vue'
 import EmptyStateCouncil from './EmptyStateCouncil.vue'
 
 const props = defineProps<{
-  selectedSkills: AgentSkill[]
-  availableSkills: AgentSkill[]
+  selectedSkills: SkillRecord[]
+  availableSkills: SkillRecord[]
 }>()
 
 const emit = defineEmits<{
@@ -43,7 +43,7 @@ function addSkill() {
   selectedSkillId.value = undefined
 }
 
-function removeSkill(skill: AgentSkill) {
+function removeSkill(skill: SkillRecord) {
   emit('remove', skill.id)
   toast('Навык отключён от агента', {
     description: skill.name,
@@ -53,7 +53,9 @@ function removeSkill(skill: AgentSkill) {
 
 <template>
   <div class="space-y-6">
-    <div class="surface-panel flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between">
+    <div
+      class="surface-panel flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between"
+    >
       <div class="space-y-3">
         <p class="section-kicker">Навыки агента</p>
         <p class="text-sm font-light leading-7 text-slate-500">
@@ -99,7 +101,7 @@ function removeSkill(skill: AgentSkill) {
                   {{ skill.name }}
                 </h3>
                 <p class="mt-1 text-xs font-light tracking-tight text-slate-400">
-                  {{ skill.category }}
+                  {{ skill.key }}
                 </p>
               </div>
             </div>

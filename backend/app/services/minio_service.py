@@ -25,7 +25,7 @@ def get_minio_client() -> Minio:
 
 def ensure_bucket(bucket_name: str | None = None) -> str:
     settings = get_settings()
-    bucket = bucket_name or settings.MINIO_BUCKET_NAME
+    bucket = bucket_name or settings.MINIO_BUCKET
     client = get_minio_client()
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
@@ -40,7 +40,7 @@ def upload_file(
     bucket_name: str | None = None,
 ) -> str:
     settings = get_settings()
-    bucket = bucket_name or settings.MINIO_BUCKET_NAME
+    bucket = bucket_name or settings.MINIO_BUCKET
     ensure_bucket(bucket)
     client = get_minio_client()
     client.put_object(
@@ -56,7 +56,7 @@ def upload_file(
 
 def download_file(object_key: str, bucket_name: str | None = None) -> bytes:
     settings = get_settings()
-    bucket = bucket_name or settings.MINIO_BUCKET_NAME
+    bucket = bucket_name or settings.MINIO_BUCKET
     client = get_minio_client()
     response = client.get_object(bucket_name=bucket, object_name=object_key)
     try:
@@ -68,7 +68,7 @@ def download_file(object_key: str, bucket_name: str | None = None) -> bytes:
 
 def delete_file(object_key: str, bucket_name: str | None = None) -> None:
     settings = get_settings()
-    bucket = bucket_name or settings.MINIO_BUCKET_NAME
+    bucket = bucket_name or settings.MINIO_BUCKET
     client = get_minio_client()
     client.remove_object(bucket_name=bucket, object_name=object_key)
     logger.info("Deleted %s from bucket %s", object_key, bucket)
@@ -84,7 +84,7 @@ def delete_files(object_keys: list[str], bucket_name: str | None = None) -> None
 
 def file_exists(object_key: str, bucket_name: str | None = None) -> bool:
     settings = get_settings()
-    bucket = bucket_name or settings.MINIO_BUCKET_NAME
+    bucket = bucket_name or settings.MINIO_BUCKET
     client = get_minio_client()
     try:
         client.stat_object(bucket_name=bucket, object_name=object_key)

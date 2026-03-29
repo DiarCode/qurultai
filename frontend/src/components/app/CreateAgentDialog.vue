@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import { toast } from 'vue-sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -25,9 +24,23 @@ import AppIcon from './AppIcon.vue'
 
 const props = defineProps<{
   open: boolean
+  saving?: boolean
 }>()
 
-const emit = defineEmits<{ 'update:open': [value: boolean] }>()
+const emit = defineEmits<{
+  'update:open': [value: boolean]
+  submit: [
+    payload: {
+      name: string
+      role: string
+      description: string
+      system_prompt: string
+      goals: string[]
+      constraints: string[]
+      status: string
+    },
+  ]
+}>()
 
 const initialState = () => ({
   name: '',
@@ -51,10 +64,21 @@ watch(
 )
 
 function submit() {
-  toast('Новый агент добавлен в демонстрационный реестр', {
-    description: `${form.name || 'Новый агент'}: ${form.role || 'роль будет уточнена'}`,
+  emit('submit', {
+    name: form.name.trim(),
+    role: form.role.trim(),
+    description: form.description.trim(),
+    system_prompt: form.systemPrompt.trim(),
+    goals: form.goals
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean),
+    constraints: form.constraints
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean),
+    status: form.status,
   })
-  emit('update:open', false)
 }
 </script>
 
@@ -133,9 +157,15 @@ function submit() {
         <Button variant="outline" class="rounded-full" @click="emit('update:open', false)">
           Отмена
         </Button>
-        <Button class="rounded-full px-6" @click="submit">
+        <Button
+          class="rounded-full px-6"
+          :disabled="
+            props.saving || !form.name.trim() || !form.role.trim() || !form.systemPrompt.trim()
+          "
+          @click="submit"
+        >
           <AppIcon name="addCircle" :size="18" />
-          Сохранить агента
+          {{ props.saving ? 'Сохраняем...' : 'Сохранить агента' }}
         </Button>
       </DialogFooter>
     </DialogContent>

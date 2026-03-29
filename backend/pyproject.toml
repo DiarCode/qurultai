@@ -7,11 +7,14 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.135.2",
     "langchain>=0.3.27",
+    "langchain-ollama>=0.3.8",
     "langgraph>=0.6.7",
+    "markdown>=3.9",
     "minio>=7.2.18",
     "openai>=1.108.1",
     "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
+    "reportlab>=4.4.4",
     "sqlmodel>=0.0.37",
     "qdrant-client>=1.15.1",
     "uvicorn[standard]>=0.42.0",
@@ -19,6 +22,8 @@ dependencies = [
     "python-multipart>=0.0.20",
     "python-docx>=1.0.0",
     "sentence-transformers>=5.1.1",
+    "langchain-openai>=1.1.12",
+    "bleach>=6.3.0",
 ]
 
 [dependency-groups]
@@ -37,8 +42,13 @@ testpaths = ["tests"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
 [tool.mypy]
 python_version = "3.12"
 plugins = []
 strict = false
 warn_unused_configs = true
+ignore_missing_imports = true
+disable_error_code = ["attr-defined", "call-overload", "import-untyped"]

@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
-
-import type { SourceReference } from '@/types/council'
+import type { CitationRecord } from '@/types/council'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,14 +15,8 @@ import {
 import AppIcon from './AppIcon.vue'
 
 defineProps<{
-  reference: SourceReference
+  reference: CitationRecord
 }>()
-
-function notifyOpen(title: string) {
-  toast('Источник откроется после подключения хранилища', {
-    description: title,
-  })
-}
 </script>
 
 <template>
@@ -44,32 +36,41 @@ function notifyOpen(title: string) {
     <DialogContent class="max-w-xl rounded-4xl border-slate-100 bg-white/95 backdrop-blur-xl p-0">
       <DialogHeader class="border-b border-slate-100 px-7 py-6">
         <div class="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{{ reference.type }}</Badge>
+          <Badge variant="secondary">Источник</Badge>
+          <Badge v-if="reference.score !== null" variant="outline"
+            >score {{ reference.score.toFixed(2) }}</Badge
+          >
           <Badge v-if="reference.location" variant="outline">{{ reference.location }}</Badge>
         </div>
         <DialogTitle class="pt-3 text-left text-xl font-light tracking-tight text-slate-900">
           {{ reference.title }}
         </DialogTitle>
         <DialogDescription class="text-left text-sm font-light leading-7 text-slate-500">
-          {{ reference.summary }}
+          {{ reference.snippet || 'Полный документ доступен по ссылке ниже.' }}
         </DialogDescription>
       </DialogHeader>
       <div class="space-y-5 px-7 py-6">
-        <div
-          class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-5"
-        >
-          <p class="text-xs font-light tracking-tight text-slate-400">
-            Источники и ссылки
-          </p>
+        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-5">
+          <p class="text-xs font-light tracking-tight text-slate-400">Источники и ссылки</p>
           <p class="mt-2 text-sm font-light leading-7 text-slate-700">
-            В итоговой интеграции здесь будет открываться просмотр документа, страницы и выделенного
-            фрагмента, на который ссылается тезис.
+            {{ reference.snippet || 'Для этого доказательства доступен скачиваемый источник.' }}
           </p>
         </div>
 
-        <Button class="rounded-full px-6" @click="notifyOpen(reference.title)">
-          <AppIcon name="link" :size="16" />
-          Открыть источник
+        <Button class="rounded-full px-6" :as-child="Boolean(reference.download_url)">
+          <a
+            v-if="reference.download_url"
+            :href="reference.download_url"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <AppIcon name="link" :size="16" />
+            Открыть источник
+          </a>
+          <span v-else class="inline-flex items-center gap-2">
+            <AppIcon name="link" :size="16" />
+            Источник недоступен
+          </span>
         </Button>
       </div>
     </DialogContent>

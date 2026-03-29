@@ -29,6 +29,8 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     prefixed = [f"passage: {text}" for text in texts]
 
     try:
+        if not settings.ENABLE_SENTENCE_TRANSFORMER:
+            raise RuntimeError("sentence-transformers disabled")
         model = _load_sentence_transformer()
         vectors = model.encode(prefixed, normalize_embeddings=True)
         return [vector.tolist() for vector in vectors]
@@ -40,6 +42,8 @@ def embed_query(query: str) -> list[float]:
     settings = get_settings()
     prefixed = f"query: {query}"
     try:
+        if not settings.ENABLE_SENTENCE_TRANSFORMER:
+            raise RuntimeError("sentence-transformers disabled")
         model = _load_sentence_transformer()
         vector = model.encode([prefixed], normalize_embeddings=True)[0]
         return vector.tolist()

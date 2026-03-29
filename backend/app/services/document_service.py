@@ -7,12 +7,11 @@ from sqlmodel import Session, select
 from app.core.config import get_settings
 from app.core.exceptions import NotFoundError
 from app.models.agent import Agent
-from app.models.document import AgentDocumentLink, Document
+from app.models.document import Document
 from app.services import minio_service
 
 
 def _generate_object_key(original_filename: str) -> str:
-    ext = original_filename.rsplit(".", 1)[-1] if "." in original_filename else ""
     unique = uuid.uuid4().hex[:12]
     safe_name = original_filename.replace(" ", "_")
     return f"documents/{unique}_{safe_name}"
@@ -32,7 +31,7 @@ def upload_document(
         data=file_data,
         object_key=object_key,
         content_type=content_type,
-        bucket_name=settings.MINIO_BUCKET_NAME,
+        bucket_name=settings.MINIO_BUCKET,
     )
 
     doc = Document(
@@ -40,7 +39,7 @@ def upload_document(
         original_filename=original_filename,
         content_type=content_type,
         file_size=len(file_data),
-        bucket_name=settings.MINIO_BUCKET_NAME,
+        bucket_name=settings.MINIO_BUCKET,
         object_key=object_key,
         description=description,
     )
@@ -97,9 +96,7 @@ def delete_documents(session: Session, document_ids: list[str]) -> int:
     return deleted
 
 
-def attach_documents_to_agent(
-    session: Session, agent_id: str, document_ids: list[str]
-) -> Agent:
+def attach_documents_to_agent(session: Session, agent_id: str, document_ids: list[str]) -> Agent:
     agent = session.get(Agent, agent_id)
     if agent is None:
         raise NotFoundError(f"Agent '{agent_id}' was not found.")
@@ -118,9 +115,7 @@ def attach_documents_to_agent(
     return agent
 
 
-def detach_documents_from_agent(
-    session: Session, agent_id: str, document_ids: list[str]
-) -> Agent:
+def detach_documents_from_agent(session: Session, agent_id: str, document_ids: list[str]) -> Agent:
     agent = session.get(Agent, agent_id)
     if agent is None:
         raise NotFoundError(f"Agent '{agent_id}' was not found.")

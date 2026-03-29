@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from sqlmodel import select
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.models.knowledge_document import AgentKnowledgeLink
 from app.schemas.knowledge import (
     KnowledgeDocumentDownloadResponse,
     KnowledgeDocumentListResponse,
     KnowledgeDocumentRead,
+    KnowledgeDocumentUploadRequest,
+    KnowledgeDocumentUploadResponse,
     KnowledgeSearchHit,
     KnowledgeSearchRequest,
     KnowledgeSearchResponse,
-    KnowledgeDocumentUploadRequest,
-    KnowledgeDocumentUploadResponse,
 )
 from app.services import knowledge_service
 
@@ -20,7 +19,9 @@ from app.services import knowledge_service
 def _build_agent_ids_map(session: Session, doc_ids: list[str]) -> dict[str, list[str]]:
     if not doc_ids:
         return {}
-    links = list(session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.document_id.in_(doc_ids))))
+    links = list(
+        session.exec(select(AgentKnowledgeLink).where(AgentKnowledgeLink.document_id.in_(doc_ids)))
+    )
     mapping: dict[str, list[str]] = {}
     for link in links:
         mapping.setdefault(link.document_id, []).append(link.agent_id)
@@ -28,9 +29,7 @@ def _build_agent_ids_map(session: Session, doc_ids: list[str]) -> dict[str, list
 
 
 def _to_read(doc, agent_ids: list[str] | None = None) -> KnowledgeDocumentRead:
-    data = KnowledgeDocumentRead.model_validate(doc).model_dump()
-    data["agent_ids"] = list(agent_ids or [])
-    return KnowledgeDocumentRead(**data)
+    return knowledge_service.build_document_read(doc, agent_ids=list(agent_ids or []))
 
 
 def upload_document(
@@ -62,15 +61,18 @@ def list_documents(session: Session, agent_id: str | None = None) -> KnowledgeDo
         return KnowledgeDocumentListResponse(items=[_to_read(doc, [agent_id]) for doc in docs])
 
     mapping = _build_agent_ids_map(session, [doc.id for doc in docs])
-    return KnowledgeDocumentListResponse(items=[_to_read(doc, mapping.get(doc.id, [])) for doc in docs])
+    return KnowledgeDocumentListResponse(
+        items=[_to_read(doc, mapping.get(doc.id, [])) for doc in docs]
+    )
 
 
 def delete_document(session: Session, document_id: str) -> None:
     knowledge_service.delete_document(session, document_id)
 
 
-def search_documents(payload: KnowledgeSearchRequest) -> KnowledgeSearchResponse:
+def search_documents(session: Session, payload: KnowledgeSearchRequest) -> KnowledgeSearchResponse:
     hits = knowledge_service.search_documents(
+        session=session,
         query=payload.query,
         limit=payload.limit,
         agent_id=payload.agent_id,
@@ -88,4 +90,6 @@ def get_document_download(
         document_id,
         expires_hours=expires_hours,
     )
-    return KnowledgeDocumentDownloadResponse(document_id=document_id, s3_uri=s3_uri, presigned_url=presigned)
+    return KnowledgeDocumentDownloadResponse(
+        document_id=document_id, s3_uri=s3_uri, presigned_url=presigned
+    )

@@ -31,6 +31,4 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     object_key: str = Field(max_length=1024, unique=True)
     description: str | None = Field(default=None)
 
-    agents: list["Agent"] = Relationship(
-        back_populates="documents", link_model=AgentDocumentLink
-    )
+    agents: list["Agent"] = Relationship(back_populates="documents", link_model=AgentDocumentLink)

@@ -201,8 +201,11 @@
   /* Ornament Grid - subtle architectural pattern */
   .ornament-grid {
     @apply absolute inset-0 pointer-events-none opacity-30;
-    background-image:
-      radial-gradient(circle at center, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+    background-image: radial-gradient(
+      circle at center,
+      rgba(15, 23, 42, 0.08) 1px,
+      transparent 1px
+    );
     background-size: 32px 32px;
     mask-image: radial-gradient(ellipse at center, black 20%, transparent 70%);
   }
@@ -255,6 +258,210 @@
     background: oklch(0.145 0.02 260);
     color: oklch(0.998 0.001 260);
     transition: all 0.5s ease;
+  }
+
+  .qurultai-richtext {
+    @apply text-sm leading-7 text-slate-700;
+  }
+
+  .qurultai-richtext .q-answer-card {
+    @apply space-y-5;
+  }
+
+  .qurultai-richtext.is-streaming .q-answer-card {
+    @apply relative;
+  }
+
+  .qurultai-richtext.is-streaming .q-answer-card::after {
+    content: '';
+    @apply absolute right-1 top-1 h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500;
+  }
+
+  .qurultai-richtext .q-meta {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .qurultai-richtext .q-pill {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500;
+  }
+
+  .qurultai-richtext .q-pill--soft {
+    @apply bg-white;
+  }
+
+  .qurultai-richtext .q-participants {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .qurultai-richtext .q-chip {
+    @apply inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white;
+  }
+
+  .qurultai-richtext .q-summary {
+    @apply rounded-[1.75rem] border border-emerald-100 bg-emerald-50/80 px-4 py-4 text-[15px] leading-7 text-slate-700;
+  }
+
+  .qurultai-richtext .q-answer-body {
+    @apply rounded-[1.75rem] bg-slate-50/70 px-4 py-4;
+  }
+
+  .qurultai-richtext .q-prose > *:first-child {
+    @apply mt-0;
+  }
+
+  .qurultai-richtext .q-prose > *:last-child {
+    @apply mb-0;
+  }
+
+  .qurultai-richtext .q-prose h1,
+  .qurultai-richtext .q-prose h2,
+  .qurultai-richtext .q-prose h3,
+  .qurultai-richtext .q-prose h4 {
+    @apply font-medium tracking-tight text-slate-900;
+  }
+
+  .qurultai-richtext .q-prose h1 {
+    @apply mb-4 text-2xl;
+  }
+
+  .qurultai-richtext .q-prose h2 {
+    @apply mt-6 mb-3 text-xl;
+  }
+
+  .qurultai-richtext .q-prose h3 {
+    @apply mt-5 mb-2 text-lg;
+  }
+
+  .qurultai-richtext .q-prose p {
+    @apply my-3;
+  }
+
+  .qurultai-richtext .q-prose ul,
+  .qurultai-richtext .q-prose ol {
+    @apply my-4 space-y-2 pl-5;
+  }
+
+  .qurultai-richtext .q-prose li {
+    @apply pl-1;
+  }
+
+  .qurultai-richtext .q-prose blockquote {
+    @apply my-4 rounded-r-[1.25rem] border-l-4 border-emerald-500 bg-emerald-50/80 px-4 py-3 text-slate-700;
+  }
+
+  .qurultai-richtext .q-prose code {
+    @apply rounded-md bg-slate-200/70 px-1.5 py-0.5 text-[13px] text-slate-800;
+  }
+
+  .qurultai-richtext .q-prose pre {
+    @apply my-4 overflow-x-auto rounded-[1.5rem] bg-slate-950 px-4 py-4 text-slate-100;
+  }
+
+  .qurultai-richtext .q-prose pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+
+  .qurultai-richtext .q-prose table {
+    @apply my-4 w-full border-collapse overflow-hidden rounded-[1.25rem] text-left text-sm;
+  }
+
+  .qurultai-richtext .q-prose th,
+  .qurultai-richtext .q-prose td {
+    @apply border border-slate-200 px-3 py-2 align-top;
+  }
+
+  .qurultai-richtext .q-prose th {
+    @apply bg-slate-100 font-medium text-slate-900;
+  }
+
+  .qurultai-richtext .q-prose a {
+    @apply text-emerald-700 underline decoration-emerald-300 underline-offset-4;
+  }
+
+  .qurultai-richtext .q-section-card {
+    @apply rounded-[1.75rem] border border-slate-100 bg-white px-4 py-4;
+  }
+
+  .qurultai-richtext .q-section-card--warning {
+    @apply border-amber-200 bg-amber-50/80;
+  }
+
+  .qurultai-richtext .q-section-card h4 {
+    @apply mb-3 text-sm font-medium tracking-tight text-slate-900;
+  }
+
+  .qurultai-richtext .q-list {
+    @apply m-0 space-y-2 pl-5 text-sm leading-6 text-slate-600;
+  }
+
+  .qurultai-richtext .q-list--ordered {
+    list-style: decimal;
+  }
+
+  .qurultai-richtext .q-note {
+    @apply rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900;
+  }
+
+  .qurultai-richtext .q-sources {
+    @apply rounded-[1.75rem] border border-slate-100 bg-slate-50/70 p-4;
+  }
+
+  .qurultai-richtext .q-sources h4 {
+    @apply mb-3 text-sm font-medium text-slate-900;
+  }
+
+  .qurultai-richtext .q-sources ul {
+    @apply m-0 space-y-3 p-0;
+    list-style: none;
+  }
+
+  .qurultai-richtext .q-sources li {
+    @apply rounded-2xl border border-slate-100 bg-white px-4 py-3;
+  }
+
+  .qurultai-richtext .q-sources li p {
+    @apply mt-2 text-sm leading-6 text-slate-500;
+  }
+
+  .qurultai-richtext .q-analysis {
+    @apply rounded-[1.75rem] border border-slate-100 bg-slate-50/70 px-4 py-3;
+  }
+
+  .qurultai-richtext .q-analysis summary {
+    @apply cursor-pointer text-sm font-medium text-slate-900;
+  }
+
+  .qurultai-richtext .q-analysis section + section {
+    @apply mt-4;
+  }
+
+  .qurultai-richtext .q-analysis h5 {
+    @apply mb-2 text-sm font-medium text-slate-900;
+  }
+
+  .qurultai-richtext .q-streaming-placeholder {
+    @apply text-sm text-slate-400;
+  }
+
+  .q-debate-prose {
+    @apply rounded-[1.5rem] border border-slate-100 bg-slate-50/70 px-4 py-4;
+  }
+
+  .q-debate-prose h1,
+  .q-debate-prose .q-prose h1 {
+    @apply text-xl;
+  }
+
+  .q-debate-prose h2,
+  .q-debate-prose .q-prose h2 {
+    @apply mt-5 text-lg;
+  }
+
+  .q-debate-prose p,
+  .q-debate-prose li,
+  .q-debate-prose .q-prose p,
+  .q-debate-prose .q-prose li {
+    @apply text-slate-600;
   }
 
   .glass-button:hover {

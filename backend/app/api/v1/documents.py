@@ -1,9 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Form, Response
 from typing import Optional
+
+from fastapi import APIRouter, File, Form, Response, UploadFile
 
 from app.api.deps import SessionDep
 from app.schemas.documents import (
-    AgentDocumentRequest,
     DocumentDeleteRequest,
     DocumentDeleteResponse,
     DocumentRead,
@@ -22,7 +22,9 @@ async def upload_documents(
     file_tuples = []
     for f in files:
         data = await f.read()
-        file_tuples.append((data, f.filename or "unknown", f.content_type or "application/octet-stream"))
+        file_tuples.append(
+            (data, f.filename or "unknown", f.content_type or "application/octet-stream")
+        )
     docs = document_service.upload_documents(session, file_tuples, description)
     return [DocumentRead.model_validate(doc) for doc in docs]
 

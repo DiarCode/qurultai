@@ -41,13 +41,17 @@ def create_room(
             payload.context_text,
         )
 
-    return RoomCreateResponse(room_id=room.id, status=room.status, thread_id=room_service.room_thread_id(room.id))
+    return RoomCreateResponse(
+        room_id=room.id, status=room.status, thread_id=room_service.room_thread_id(room.id)
+    )
 
 
 @router.get("/{room_id}/status", response_model=RoomStatusResponse)
 def room_status(room_id: str, session: SessionDep) -> RoomStatusResponse:
     room = room_service.get_room_status(session, room_id)
-    return RoomStatusResponse(room_id=room.id, status=room.status, mission_goals=room.mission_goals_json)
+    return RoomStatusResponse(
+        room_id=room.id, status=room.status, mission_goals=room.mission_goals_json
+    )
 
 
 @router.get("/{room_id}/report", response_model=RoomReportResponse)

@@ -4,6 +4,7 @@ Built-in tool implementations: OCR, HTML Reader, PDF Reader.
 Each tool function takes an input dict and returns an output dict.
 These can be invoked by agents based on DB tool configuration.
 """
+
 from __future__ import annotations
 
 import io
@@ -21,7 +22,10 @@ BUILTIN_TOOLS: dict[str, dict[str, Any]] = {
             "type": "object",
             "properties": {
                 "file_path": {"type": "string", "description": "Path to the PDF file"},
-                "file_data": {"type": "string", "description": "Base64 encoded PDF data (alternative to file_path)"},
+                "file_data": {
+                    "type": "string",
+                    "description": "Base64 encoded PDF data (alternative to file_path)",
+                },
             },
         },
         "output_schema": {
@@ -60,7 +64,11 @@ BUILTIN_TOOLS: dict[str, dict[str, Any]] = {
             "properties": {
                 "file_path": {"type": "string", "description": "Path to the image file"},
                 "file_data": {"type": "string", "description": "Base64 encoded image data"},
-                "language": {"type": "string", "default": "eng", "description": "Tesseract language code"},
+                "language": {
+                    "type": "string",
+                    "default": "eng",
+                    "description": "Tesseract language code",
+                },
             },
         },
         "output_schema": {
@@ -81,6 +89,7 @@ def execute_pdf_reader(params: dict[str, Any]) -> dict[str, Any]:
 
     if file_data:
         import base64
+
         raw = base64.b64decode(file_data)
         reader = PyPDF2.PdfReader(io.BytesIO(raw))
     elif file_path:
@@ -140,6 +149,7 @@ def execute_ocr_reader(params: dict[str, Any]) -> dict[str, Any]:
     try:
         if file_data:
             import base64
+
             raw = base64.b64decode(file_data)
             image = Image.open(io.BytesIO(raw))
         elif file_path:

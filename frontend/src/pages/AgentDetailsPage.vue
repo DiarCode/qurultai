@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import AgentProfileHeader from '@/components/app/AgentProfileHeader.vue'
@@ -14,21 +14,24 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { agents, availableSkills } from '@/data/council'
+import { useAgentsStore } from '@/stores/agents'
 
 const route = useRoute()
-
-const agent = computed(() => {
-  return agents.find((item) => item.id === route.params.id)
-})
+const router = useRouter()
+const agentsStore = useAgentsStore()
 
 const editor = reactive({
   role: '',
   description: '',
   systemPrompt: '',
+  goalsText: '',
+  constraintsText: '',
+  status: 'active',
 })
 
-const selectedSkills = reactive<string[]>([])
+const agent = computed(() => {
+  return agentsStore.agents.find((item) => item.id === route.params.id) ?? null
+})
 
 watch(
   agent,
@@ -38,42 +41,115 @@ watch(
     }
 
     editor.role = value.role
-    editor.description = value.description
-    editor.systemPrompt = value.systemPrompt
-    selectedSkills.splice(0, selectedSkills.length, ...value.skills.map((skill) => skill.id))
+    editor.description = value.description ?? ''
+    editor.systemPrompt = value.system_prompt
+    editor.goalsText = value.goals.join('\n')
+    editor.constraintsText = value.constraints.join('\n')
+    editor.status = value.status
   },
   { immediate: true },
 )
 
-const skillModels = computed(() => {
-  return availableSkills.filter((skill) => selectedSkills.includes(skill.id))
+agentsStore.ensureBootstrap().then(async () => {
+  if (typeof route.params.id === 'string') {
+    try {
+      await agentsStore.fetchAgent(route.params.id)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить профиль агента.')
+    }
+  }
 })
 
-function addSkill(skillId: string) {
-  if (selectedSkills.includes(skillId)) {
+async function saveAgent() {
+  if (!agent.value) {
     return
   }
 
-  selectedSkills.push(skillId)
-  const skill = availableSkills.find((item) => item.id === skillId)
-  if (skill) {
-    toast('Навык подключён', {
-      description: skill.name,
+  try {
+    await agentsStore.updateAgent(agent.value.id, {
+      role: editor.role,
+      description: editor.description,
+      system_prompt: editor.systemPrompt,
+      goals: editor.goalsText
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean),
+      constraints: editor.constraintsText
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean),
+      status: editor.status,
     })
+    toast.success('Профиль агента обновлён.')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Не удалось сохранить изменения.')
   }
 }
 
-function removeSkill(skillId: string) {
-  const index = selectedSkills.indexOf(skillId)
-  if (index >= 0) {
-    selectedSkills.splice(index, 1)
+async function removeAgent() {
+  if (!agent.value) {
+    return
+  }
+
+  try {
+    await agentsStore.deleteAgent(agent.value.id)
+    toast.success('Агент удалён.')
+    await router.push('/agents')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Не удалось удалить агента.')
   }
 }
 
-function saveAgent() {
-  toast('Изменения сохранены в демонстрационном режиме', {
-    description: agent.value?.name,
-  })
+async function handleDocumentUpload(file: File) {
+  if (!agent.value) {
+    return
+  }
+
+  try {
+    await agentsStore.uploadAgentDocument(agent.value.id, file)
+    toast.success('Документ загружен и привязан к агенту.')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Не удалось загрузить документ.')
+  }
+}
+
+async function handleDocumentRemove(documentId: string) {
+  if (!agent.value) {
+    return
+  }
+
+  try {
+    await agentsStore.removeAgentDocument(agent.value.id, documentId)
+    toast.success('Документ удалён.')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Не удалось удалить документ.')
+  }
+}
+
+async function addSkill(skillId: string) {
+  if (!agent.value) {
+    return
+  }
+
+  try {
+    await agentsStore.addAgentSkill(agent.value.id, skillId)
+    toast.success('Навык подключён.')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Не удалось подключить навык.')
+  }
+}
+
+async function removeSkill(skillId: string) {
+  if (!agent.value) {
+    return
+  }
+
+  try {
+    await agentsStore.removeAgentSkill(agent.value.id, skillId)
+    toast.success('Навык отключён.')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Не удалось отключить навык.')
+  }
 }
 </script>
 
@@ -83,117 +159,77 @@ function saveAgent() {
 
     <Tabs default-value="details">
       <TabsList class="w-full justify-start overflow-x-auto rounded-4xl p-2 md:w-auto">
-        <TabsTrigger value="details" class="rounded-full px-5">
-          Детали агента
-        </TabsTrigger>
-        <TabsTrigger value="documents" class="rounded-full px-5">
-          Документы и RAG
-        </TabsTrigger>
-        <TabsTrigger value="skills" class="rounded-full px-5">
-          Навыки агента
-        </TabsTrigger>
+        <TabsTrigger value="details" class="rounded-full px-5"> Детали агента </TabsTrigger>
+        <TabsTrigger value="documents" class="rounded-full px-5"> Документы и RAG </TabsTrigger>
+        <TabsTrigger value="skills" class="rounded-full px-5"> Навыки агента </TabsTrigger>
       </TabsList>
 
       <TabsContent value="details">
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <!-- Main Form Card -->
-          <article class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl">
-            <div
-              class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent opacity-50"
-            />
+          <article
+            class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl"
+          >
             <div class="relative p-6 sm:p-8 space-y-6">
-              <!-- Role & Status Row -->
               <div class="grid gap-6 md:grid-cols-2">
                 <label class="space-y-3">
                   <span class="text-sm font-light tracking-tight text-slate-900">Роль</span>
                   <Input v-model="editor.role" class="rounded-2xl bg-white/90" />
                 </label>
-                <div class="space-y-3">
+                <label class="space-y-3">
                   <span class="text-sm font-light tracking-tight text-slate-900">Статус</span>
-                  <div
-                    class="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-3.5 text-sm font-light text-slate-700"
-                  >
-                    {{
-                      agent.status === 'active'
-                        ? 'Активен'
-                        : agent.status === 'draft'
-                          ? 'Черновик'
-                          : 'На паузе'
-                    }}
-                  </div>
-                </div>
+                  <Input v-model="editor.status" class="rounded-2xl bg-white/90" />
+                </label>
               </div>
 
-              <!-- Description -->
               <label class="space-y-3">
                 <span class="text-sm font-light tracking-tight text-slate-900">Описание</span>
                 <Textarea v-model="editor.description" class="min-h-32 bg-white/90" />
               </label>
 
-              <!-- System Prompt -->
               <label class="space-y-3">
-                <span class="text-sm font-light tracking-tight text-slate-900">Системный промпт</span>
+                <span class="text-sm font-light tracking-tight text-slate-900"
+                  >Системный промпт</span
+                >
                 <Textarea v-model="editor.systemPrompt" class="min-h-44 bg-white/90" />
               </label>
 
               <Separator />
 
-              <!-- Goals & Constraints -->
               <div class="grid gap-6 md:grid-cols-2">
-                <div class="space-y-4">
-                  <p class="section-kicker">Цели</p>
-                  <ul class="space-y-3">
-                    <li
-                      v-for="goal in agent.goals"
-                      :key="goal"
-                      class="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-4 text-sm font-light leading-7 text-slate-700"
-                    >
-                      {{ goal }}
-                    </li>
-                  </ul>
-                </div>
+                <label class="space-y-3">
+                  <span class="text-sm font-light tracking-tight text-slate-900">Цели</span>
+                  <Textarea v-model="editor.goalsText" class="min-h-32 bg-white/90" />
+                </label>
 
-                <div class="space-y-4">
-                  <p class="section-kicker">Ограничения</p>
-                  <ul class="space-y-3">
-                    <li
-                      v-for="constraint in agent.constraints"
-                      :key="constraint"
-                      class="rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-4 text-sm font-light leading-7 text-slate-700"
-                    >
-                      {{ constraint }}
-                    </li>
-                  </ul>
-                </div>
+                <label class="space-y-3">
+                  <span class="text-sm font-light tracking-tight text-slate-900">Ограничения</span>
+                  <Textarea v-model="editor.constraintsText" class="min-h-32 bg-white/90" />
+                </label>
               </div>
             </div>
           </article>
 
-          <!-- Sidebar Card -->
-          <article class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl">
-            <div
-              class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent opacity-50"
-            />
+          <article
+            class="relative overflow-hidden rounded-4xl border border-slate-100 bg-white/80 backdrop-blur-xl"
+          >
             <div class="relative p-6 sm:p-8 space-y-6">
               <div class="space-y-4">
                 <p class="section-kicker">Мета-данные</p>
                 <div class="space-y-4">
                   <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                    <p class="text-xs font-light tracking-tight text-slate-400">
-                      ID агента
-                    </p>
+                    <p class="text-xs font-light tracking-tight text-slate-400">ID агента</p>
                     <p class="mt-2 text-sm font-light text-slate-700">{{ agent.id }}</p>
                   </div>
                   <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                    <p class="text-xs font-light tracking-tight text-slate-400">Фокус</p>
-                    <p class="mt-2 text-sm font-light text-slate-700">{{ agent.focus }}</p>
+                    <p class="text-xs font-light tracking-tight text-slate-400">Ключ</p>
+                    <p class="mt-2 text-sm font-light text-slate-700">{{ agent.key }}</p>
                   </div>
                   <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
                     <p class="text-xs font-light tracking-tight text-slate-400">
                       Подключённые навыки
                     </p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                      <Badge v-for="skill in skillModels" :key="skill.id" variant="outline">
+                      <Badge v-for="skill in agent.skills" :key="skill.id" variant="outline">
                         {{ skill.name }}
                       </Badge>
                     </div>
@@ -201,9 +237,18 @@ function saveAgent() {
                 </div>
               </div>
 
-              <Button class="w-full rounded-full" @click="saveAgent">
+              <Button class="w-full rounded-full" :disabled="agentsStore.saving" @click="saveAgent">
                 <AppIcon name="check" :size="18" />
-                Сохранить изменения
+                {{ agentsStore.saving ? 'Сохраняем...' : 'Сохранить изменения' }}
+              </Button>
+              <Button
+                variant="outline"
+                class="w-full rounded-full text-rose-600"
+                :disabled="agentsStore.saving"
+                @click="removeAgent"
+              >
+                <AppIcon name="cancel" :size="18" />
+                Удалить агента
               </Button>
             </div>
           </article>
@@ -211,13 +256,19 @@ function saveAgent() {
       </TabsContent>
 
       <TabsContent value="documents">
-        <DocumentLibraryPanel :documents="agent.documents" />
+        <DocumentLibraryPanel
+          :documents="agent.documents"
+          :uploading="agentsStore.saving"
+          removable
+          @upload="handleDocumentUpload"
+          @remove="handleDocumentRemove"
+        />
       </TabsContent>
 
       <TabsContent value="skills">
         <SkillPickerPanel
-          :selected-skills="skillModels"
-          :available-skills="availableSkills"
+          :selected-skills="agent.skills"
+          :available-skills="agentsStore.skills"
           @add="addSkill"
           @remove="removeSkill"
         />

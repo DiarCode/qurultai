@@ -1,26 +1,21 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
-import type { AgentProfile } from '@/types/council'
+import type { AgentRecord } from '@/types/council'
 
 import { Badge } from '@/components/ui/badge'
+import { agentIconForRole, agentStatusLabel } from '@/lib/council-ui'
 
 import AppIcon from './AppIcon.vue'
 
 defineProps<{
-  agent: AgentProfile
+  agent: AgentRecord
 }>()
 
 const statusVariant = {
   active: 'success',
   draft: 'outline',
   paused: 'warning',
-} as const
-
-const statusLabel = {
-  active: 'Активен',
-  draft: 'Черновик',
-  paused: 'На паузе',
 } as const
 </script>
 
@@ -38,10 +33,10 @@ const statusLabel = {
         <!-- Header -->
         <div class="flex items-start justify-between gap-4 mb-5">
           <div class="ornament-ring flex size-16 items-center justify-center text-slate-900">
-            <AppIcon :name="agent.icon" :size="24" />
+            <AppIcon :name="agentIconForRole(agent.role)" :size="24" />
           </div>
           <Badge :variant="statusVariant[agent.status]">
-            {{ statusLabel[agent.status] }}
+            {{ agentStatusLabel[agent.status] }}
           </Badge>
         </div>
 
@@ -57,7 +52,7 @@ const statusLabel = {
 
         <!-- Description -->
         <p class="text-sm font-light leading-7 text-slate-500 mb-6">
-          {{ agent.description }}
+          {{ agent.description || agent.system_prompt }}
         </p>
 
         <!-- Stats -->
@@ -65,13 +60,13 @@ const statusLabel = {
           <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
             <p class="text-xs font-light tracking-tight text-slate-400">Документы</p>
             <p class="mt-2 text-xl font-light text-slate-900">
-              {{ agent.documentsCount }}
+              {{ agent.documents.length }}
             </p>
           </div>
           <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
             <p class="text-xs font-light tracking-tight text-slate-400">Навыки</p>
             <p class="mt-2 text-xl font-light text-slate-900">
-              {{ agent.skillsCount }}
+              {{ agent.skills.length }}
             </p>
           </div>
         </div>

@@ -10,16 +10,12 @@ export const buttonVariants = cva(
       variant: {
         default:
           'bg-slate-900 text-white hover:bg-slate-800 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/10',
-        destructive:
-          'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600/20',
+        destructive: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600/20',
         outline:
           'border border-slate-200 bg-transparent text-slate-900 hover:bg-slate-50 hover:border-slate-300',
-        secondary:
-          'bg-slate-100 text-slate-900 hover:bg-slate-200',
-        ghost:
-          'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-        link:
-          'text-slate-900 underline-offset-4 hover:underline',
+        secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200',
+        ghost: 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+        link: 'text-slate-900 underline-offset-4 hover:underline',
         glass:
           'bg-white/80 backdrop-blur-md border border-white/30 text-slate-900 shadow-sm hover:bg-white/90 hover:shadow-md',
       },

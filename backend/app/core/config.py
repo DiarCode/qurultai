@@ -21,12 +21,27 @@ class Settings(BaseSettings):
     REPORTS_DIR: str = "data/reports"
     SKILLS_DIR: str = "data/skills"
     LANGGRAPH_MAX_STEPS: int = 25
+    FRONTEND_ORIGINS: str = (
+        "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173"
+    )
 
+    LLM_PROVIDER: str = "openai"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_MODEL: str = "qwen3.5:2b"
+    OLLAMA_NUM_PREDICT: int = 768
     OPENAI_API_KEY: str | None = None
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    OPENAI_MODEL: str = "gpt-5.4-nano"
+    OPENAI_MODEL: str = "gpt-5.4-mini"
     OPENAI_TEMPERATURE: float = 0.1
-    OPENAI_TIMEOUT_SECONDS: float = 8.0
+    OPENAI_TIMEOUT_SECONDS: float = 30.0
+    OPENAI_MAX_OUTPUT_TOKENS_DIRECT: int = 320
+    OPENAI_MAX_OUTPUT_TOKENS_RAG: int = 540
+    OPENAI_MAX_OUTPUT_TOKENS_SPECIALIST: int = 780
+    OPENAI_MAX_OUTPUT_TOKENS_COUNCIL: int = 1050
+    OPENAI_MAX_OUTPUT_TOKENS_SPECIALIST_MESSAGE: int = 260
+    OPENAI_MAX_OUTPUT_TOKENS_CRITIC: int = 220
+    OPENAI_MAX_OUTPUT_TOKENS_ROUTING: int = 260
+    ENABLE_LLM_CALLS: bool = False
 
     QDRANT_URL: str = "http://127.0.0.1:6333"
     QDRANT_API_KEY: str | None = None
@@ -42,6 +57,7 @@ class Settings(BaseSettings):
 
     EMBEDDING_MODEL_NAME: str = "intfloat/multilingual-e5-small"
     EMBEDDING_DIMENSION: int = 384
+    ENABLE_SENTENCE_TRANSFORMER: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -77,6 +93,10 @@ class Settings(BaseSettings):
     @property
     def sqlite_url(self) -> str:
         return f"{SQLITE_URL_PREFIX}{self.sqlite_db_path.as_posix()}"
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.FRONTEND_ORIGINS.split(",") if origin.strip()]
 
 
 @lru_cache(maxsize=1)

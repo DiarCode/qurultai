@@ -1,203 +1,307 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed } from 'vue'
 
-import type { AgentProfile, ChatMessage, DebateMessage } from '@/types/council'
+import type {
+  ChatParticipantRecord,
+  ChatRunRecord,
+  ChatSessionRecord,
+  DebateMessageRecord,
+  ToolCallRecord,
+} from '@/types/chat'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 
-import { useDebatePlayback } from '@/composables/useDebatePlayback'
-
 import AppIcon from './AppIcon.vue'
-import DebateMessageCard from './DebateMessage.vue'
+import DebateMessage from './DebateMessage.vue'
 
 const props = defineProps<{
-  agents: AgentProfile[]
-  messages: DebateMessage[]
-  request: ChatMessage
+  currentSession: ChatSessionRecord | null
+  currentRun: ChatRunRecord | null
+  socketState: 'idle' | 'connecting' | 'open' | 'closed'
 }>()
 
-const agentMap = computed(() => {
-  return new Map(props.agents.map((agent) => [agent.id, agent]))
-})
+interface DeltaPayload {
+  message_id: string
+  role: string
+  source_agent_id?: string | null
+  source_agent_name?: string | null
+  stage?: string | null
+  delta: string
+}
 
-const stageSummary = computed(() => {
-  return [
-    {
-      id: 'position',
-      label: 'Позиции',
-      count: props.messages.filter((message) => message.stage === 'position').length,
-    },
-    {
-      id: 'debate',
-      label: 'Ответы',
-      count: props.messages.filter((message) => message.stage === 'debate').length,
-    },
-    {
-      id: 'synthesis',
-      label: 'Синтез',
-      count: props.messages.filter((message) => message.stage === 'synthesis').length,
-    },
-  ] as const
-})
+interface FinalPayload {
+  message: DebateMessageRecord
+}
 
-const { activeMessage, isFinished, restartPlayback, visibleMessages } = useDebatePlayback(
-  () => props.messages,
-)
-
-const currentAgent = computed(() => {
-  return activeMessage.value ? (agentMap.value.get(activeMessage.value.agentId) ?? null) : null
-})
-
-const latestVisibleMessageId = computed(() => {
-  return visibleMessages.value.length
-    ? (visibleMessages.value[visibleMessages.value.length - 1]?.id ?? null)
-    : null
-})
-
-const currentStageLabel = computed(() => {
-  switch (activeMessage.value?.stage) {
-    case 'position':
-      return 'Раунд начальных позиций'
-    case 'debate':
-      return 'Раунд взаимных ответов'
-    case 'synthesis':
-      return 'Формируется итоговый синтез'
+function statusTone(status: ChatRunRecord['status'] | undefined) {
+  switch (status) {
+    case 'completed':
+      return 'text-emerald-700'
+    case 'failed':
+      return 'text-rose-700'
+    case 'processing':
+      return 'text-sky-700'
     default:
-      return 'Совет завершил текущий цикл'
+      return 'text-slate-700'
   }
+}
+
+const participantMap = computed(
+  () =>
+    new Map<string, ChatParticipantRecord>(
+      (props.currentRun?.selected_agents ?? []).map((participant) => [participant.id, participant]),
+    ),
+)
+
+const debateMessages = computed<DebateMessageRecord[]>(() => {
+  const ordered = [...(props.currentRun?.events ?? [])].sort((left, right) => left.sequence - right.sequence)
+  const byId = new Map<string, DebateMessageRecord>()
+
+  for (const event of ordered) {
+    if (event.event_type === 'agent_message_delta') {
+      const payload = event.payload as unknown as DeltaPayload
+      const existing = byId.get(payload.message_id)
+      byId.set(payload.message_id, {
+        id: payload.message_id,
+        run_id: props.currentRun?.id ?? '',
+        role: payload.role,
+        source_agent_id: payload.source_agent_id ?? null,
+        source_agent_name: payload.source_agent_name ?? null,
+        stage: payload.stage ?? null,
+        status: 'processing',
+        content: `${existing?.content ?? ''}${payload.delta}`,
+        citations: existing?.citations ?? [],
+        tool_calls: existing?.tool_calls ?? [],
+        is_partial: true,
+        created_at: existing?.created_at ?? event.created_at,
+      })
+      continue
+    }
+
+    if (event.event_type === 'agent_message_final') {
+      const payload = event.payload as unknown as FinalPayload
+      byId.set(payload.message.id, {
+        ...payload.message,
+        is_partial: false,
+      })
+    }
+  }
+
+  return [...byId.values()].sort(
+    (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime(),
+  )
 })
 
-const feedRef = ref<HTMLElement | null>(null)
+const debateToolCalls = computed(() => {
+  const calls: Array<{ id: string; agentName: string; tool: ToolCallRecord }> = []
+  for (const message of debateMessages.value) {
+    for (const toolCall of message.tool_calls) {
+      calls.push({
+        id: `${message.id}-${toolCall.name}`,
+        agentName: message.source_agent_name || 'Qurultai',
+        tool: toolCall,
+      })
+    }
+  }
+  return calls.slice(-6).reverse()
+})
 
-watch(
-  () => visibleMessages.value.length,
-  async () => {
-    await nextTick()
-    feedRef.value?.scrollTo({
-      top: feedRef.value.scrollHeight,
-      behavior: 'smooth',
-    })
-  },
-)
+const recentEvents = computed(() => [...(props.currentRun?.events ?? [])].slice(-8).reverse())
+
+function labelForEvent(eventType: string) {
+  return (
+    {
+      run_created: 'Run created',
+      mode_selected: 'Routing decision',
+      retrieval_completed: 'Evidence prepared',
+      agent_selected: 'Institution selected',
+      agent_started: 'Institution started',
+      agent_completed: 'Institution finished',
+      critic_started: 'Critic started',
+      quality_check_completed: 'Critic finished',
+      tool_called: 'Evidence review',
+      tool_result: 'Evidence review completed',
+      report_ready: 'Report prepared',
+      assistant_message_delta: 'Answer streaming',
+      assistant_message_completed: 'Answer completed',
+      run_status_changed: 'Status updated',
+      run_completed: 'Run completed',
+      run_failed: 'Run failed',
+    }[eventType] || eventType
+  )
+}
+
+function eventSummary(event: ChatRunRecord['events'][number]) {
+  switch (event.event_type) {
+    case 'mode_selected':
+      return String((event.payload.mode as string | undefined) ?? 'Mode selected')
+    case 'retrieval_completed':
+      return `${String((event.payload.citation_count as number | undefined) ?? 0)} evidence items ready`
+    case 'agent_selected':
+    case 'agent_started':
+    case 'agent_completed':
+      return String(
+        (event.payload.participant as { name?: string } | undefined)?.name ||
+          (event.payload.summary as string | undefined) ||
+          'Institution update',
+      )
+    case 'tool_result':
+    case 'tool_called':
+      return String(
+        ((event.payload.tool as { output_summary?: string; name?: string } | undefined)?.output_summary ||
+          (event.payload.tool as { name?: string } | undefined)?.name ||
+          'Evidence review')
+      )
+    case 'quality_check_completed':
+    case 'critic_started':
+      return String((event.payload.summary as string | undefined) ?? 'Critic update')
+    case 'report_ready':
+      return 'HTML and PDF downloads are ready'
+    case 'run_status_changed':
+    case 'run_completed':
+    case 'run_failed':
+      return String((event.payload.status as string | undefined) ?? 'Status updated')
+    default:
+      return String((event.payload.summary as string | undefined) ?? 'Live update')
+  }
+}
+
+function timestamp(value: string) {
+  return new Date(value).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
 </script>
 
 <template>
-  <aside id="debate-panel" class="min-w-0 xl:w-[32rem] 2xl:w-[36rem]">
+  <aside class="min-w-0">
     <section class="surface-panel overflow-hidden xl:sticky xl:top-8">
-      <!-- Header -->
       <div class="border-b border-slate-100 px-6 py-6">
-        <div class="flex flex-col gap-6">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="max-w-xl space-y-4">
-              <p class="section-kicker">Внутренний круг</p>
-              <div class="space-y-3">
-                <h2
-                  class="font-display text-[clamp(2rem,3.5vw,3rem)] leading-[0.96] tracking-tight text-slate-900"
-                >
-                  Живое обсуждение агентов
-                </h2>
-                <p class="text-sm font-light leading-7 text-slate-500">
-                  Рядом с координационным чатом виден полный ход рассуждения: кто начал, кто
-                  возразил, на что сослался и как совет пришёл к финальному выводу.
-                </p>
-              </div>
+        <div class="space-y-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-3">
+              <p class="section-kicker">Decision Room</p>
+              <h2 class="font-display text-[clamp(1.9rem,3vw,2.75rem)] leading-[0.98] tracking-tight text-slate-900">
+                Institutional debate
+              </h2>
+              <p class="text-sm leading-7 text-slate-500">
+                Review the live institutional discussion, evidence use, and decision posture behind the final answer.
+              </p>
             </div>
 
-            <Button variant="outline" class="rounded-full" @click="restartPlayback">
-              <AppIcon name="workflow" :size="16" />
-              Повторить поток
-            </Button>
+            <Badge variant="outline">Socket {{ socketState }}</Badge>
           </div>
 
-          <!-- Request Card -->
-          <div class="space-y-4">
-            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-              <div class="flex items-start gap-4">
-                <div class="ornament-ring flex size-12 shrink-0 items-center justify-center text-slate-900">
-                  <AppIcon name="user" :size="18" />
-                </div>
-                <div class="min-w-0 space-y-3">
-                  <div class="flex flex-wrap items-center gap-3">
-                    <Badge variant="secondary">Ваш запрос</Badge>
-                    <span class="text-xs font-light tracking-tight text-slate-400">
-                      {{ request.timestamp }}
-                    </span>
-                  </div>
-                  <p class="text-sm font-light leading-7 text-slate-700">
-                    {{ request.content }}
-                  </p>
-                </div>
-              </div>
+          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+            <div class="rounded-3xl border border-slate-100 bg-white/70 p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Current mode</p>
+              <p class="mt-3 text-sm font-medium text-slate-900">
+                {{ currentRun ? currentRun.mode.replace('_', ' ') : 'Awaiting message' }}
+              </p>
             </div>
 
-            <!-- Stage Badges -->
-            <div class="flex flex-wrap items-center gap-4">
-              <div class="flex flex-wrap gap-2">
-                <Badge
-                  v-for="stage in stageSummary"
-                  :key="stage.id"
-                  :variant="activeMessage?.stage === stage.id ? 'secondary' : 'outline'"
-                  class="px-4 py-2"
-                >
-                  {{ stage.label }} · {{ stage.count }}
-                </Badge>
-              </div>
+            <div class="rounded-3xl border border-slate-100 bg-white/70 p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Run status</p>
+              <p class="mt-3 text-sm font-medium" :class="statusTone(currentRun?.status)">
+                {{ currentRun?.status || 'idle' }}
+              </p>
+            </div>
+          </div>
 
-              <div
-                class="inline-flex items-center gap-2.5 rounded-full border border-slate-100 bg-white/80 px-4 py-2 text-xs font-light text-slate-500"
+          <div v-if="currentRun?.selected_agents.length" class="space-y-3">
+            <p class="text-sm font-medium text-slate-900">Institutions in the room</p>
+            <div class="flex flex-wrap gap-2">
+              <Badge
+                v-for="participant in currentRun.selected_agents"
+                :key="participant.id"
+                variant="secondary"
+                class="px-4 py-2"
               >
-                <AppIcon
-                  :name="isFinished ? 'check' : 'loading'"
-                  :size="14"
-                  :class="isFinished ? 'text-emerald-600' : 'animate-spin text-slate-400'"
-                />
-                <span v-if="currentAgent"> Сейчас отвечает {{ currentAgent.name }} </span>
-                <span v-else>Цикл завершён</span>
-              </div>
+                {{ participant.name }}
+              </Badge>
             </div>
+          </div>
 
-            <!-- Stage Info -->
-            <div class="rounded-2xl border border-slate-100 bg-white/60 px-5 py-4">
-              <p class="text-xs font-light tracking-tight text-slate-400">
-                {{ currentStageLabel }}
-              </p>
-              <p class="mt-2 text-sm font-light leading-7 text-slate-700">
-                Показано {{ visibleMessages.length }} из {{ messages.length }} сообщений внутреннего
-                круга.
-              </p>
+          <div v-if="currentSession?.documents.length" class="space-y-3">
+            <p class="text-sm font-medium text-slate-900">Evidence docket</p>
+            <div class="space-y-2">
+              <div
+                v-for="document in currentSession.documents.slice(0, 4)"
+                :key="document.id"
+                class="rounded-2xl border border-slate-100 bg-white/80 px-4 py-3"
+              >
+                <p class="text-sm font-medium text-slate-900">{{ document.name }}</p>
+                <p class="mt-1 text-xs text-slate-400">{{ document.mime_type || 'Document' }}</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Messages Feed -->
-      <div class="px-6 py-5">
+      <div class="max-h-[72vh] overflow-y-auto px-6 py-5">
         <div class="flex items-center justify-between gap-4">
-          <p class="text-sm font-light tracking-tight text-slate-900">Поток сообщений совета</p>
-          <span class="text-xs font-light tracking-tight text-slate-400">
-            В реальном времени
-          </span>
+          <p class="text-sm font-medium tracking-tight text-slate-900">Debate feed</p>
+          <AppIcon name="workflow" :size="16" />
         </div>
 
-        <Separator class="mt-5" />
+        <Separator class="mt-4" />
 
-        <div
-          ref="feedRef"
-          class="mt-5 max-h-[36rem] space-y-5 overflow-y-auto pr-1 xl:max-h-[calc(100vh-28rem)]"
-        >
-          <TransitionGroup name="debate-flow" tag="div" class="space-y-5">
-            <DebateMessageCard
-              v-for="message in visibleMessages"
-              :key="message.id"
-              :message="message"
-              :agent="agentMap.get(message.agentId)!"
-              :display-content="message.displayContent"
-              :is-typing="message.isTyping"
-              :is-latest="message.id === latestVisibleMessageId"
-            />
-          </TransitionGroup>
+        <div class="mt-5 space-y-4">
+          <DebateMessage
+            v-for="message in debateMessages"
+            :key="message.id"
+            :message="message"
+            :participant="message.source_agent_id ? participantMap.get(message.source_agent_id) : null"
+          />
+
+          <div
+            v-if="!debateMessages.length && currentRun?.mode === 'direct_answer'"
+            class="rounded-3xl border border-dashed border-slate-200 bg-white/70 px-4 py-5 text-sm leading-6 text-slate-500"
+          >
+            Direct mode keeps the internal process lightweight. Ask for `specialist assist` or `council` when you want a visible institutional debate.
+          </div>
+
+          <div
+            v-else-if="!debateMessages.length"
+            class="rounded-3xl border border-dashed border-slate-200 bg-white/70 px-4 py-5 text-sm leading-6 text-slate-500"
+          >
+            Send a message to see institutions debate, attach evidence, and converge toward the final answer.
+          </div>
+        </div>
+
+        <div v-if="debateToolCalls.length" class="mt-8 space-y-3">
+          <p class="text-sm font-medium tracking-tight text-slate-900">Evidence operations</p>
+          <div class="space-y-2">
+            <div
+              v-for="item in debateToolCalls"
+              :key="item.id"
+              class="rounded-2xl border border-slate-100 bg-white/80 px-4 py-3"
+            >
+              <p class="text-sm font-medium text-slate-900">{{ item.agentName }}</p>
+              <p class="mt-1 text-sm leading-6 text-slate-500">
+                {{ item.tool.output_summary || `${item.tool.name} · ${item.tool.status}` }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="recentEvents.length" class="mt-8 space-y-3">
+          <p class="text-sm font-medium tracking-tight text-slate-900">Timeline</p>
+          <div class="space-y-2">
+            <div
+              v-for="event in recentEvents"
+              :key="event.id"
+              class="rounded-2xl border border-slate-100 bg-white/75 px-4 py-3"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <p class="text-sm font-medium text-slate-900">{{ labelForEvent(event.event_type) }}</p>
+                <span class="text-xs text-slate-400">{{ timestamp(event.created_at) }}</span>
+              </div>
+              <p class="mt-1 text-sm leading-6 text-slate-500">{{ eventSummary(event) }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>

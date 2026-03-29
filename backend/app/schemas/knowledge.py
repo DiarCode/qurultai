@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from pydantic import Base64Bytes
-from pydantic import Field
+from pydantic import Base64Bytes, Field
 
-from app.schemas.common import AuditAwareResponse, ORMModel
+from app.schemas.common import AuditAwareResponse, JsonDict, ORMModel
 
 
 class KnowledgeDocumentUploadRequest(ORMModel):
@@ -23,8 +22,13 @@ class KnowledgeDocumentRead(AuditAwareResponse):
     s3_bucket: str
     s3_key: str
     text_preview: str | None
-    metadata_json: dict[str, str] = Field(default_factory=dict)
+    metadata_json: JsonDict = Field(default_factory=dict)
+    upload_status: str = "completed"
+    index_status: str = "completed"
+    chunk_count: int = 0
+    parser_kind: str | None = None
     agent_ids: list[str] = Field(default_factory=list)
+    download_url: str | None = None
 
 
 class KnowledgeDocumentUploadResponse(ORMModel):
@@ -45,9 +49,14 @@ class KnowledgeSearchRequest(ORMModel):
 class KnowledgeSearchHit(ORMModel):
     document_id: str
     agent_id: str | None = None
+    title: str | None = None
+    mime_type: str | None = None
     text: str
     s3_key: str
     score: float
+    chunk_index: int | None = None
+    chunk_count: int | None = None
+    location: str | None = None
 
 
 class KnowledgeSearchResponse(ORMModel):

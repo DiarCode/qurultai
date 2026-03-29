@@ -9,10 +9,14 @@ import httpx
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run end-to-end API request flow against running backend.")
+    parser = argparse.ArgumentParser(
+        description="Run end-to-end API request flow against running backend."
+    )
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/api/v1", help="API base URL")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout seconds")
-    parser.add_argument("--poll-interval", type=float, default=0.2, help="Status poll interval seconds")
+    parser.add_argument(
+        "--poll-interval", type=float, default=0.2, help="Status poll interval seconds"
+    )
     parser.add_argument("--poll-attempts", type=int, default=80, help="Max polling attempts")
     return parser.parse_args()
 
@@ -78,7 +82,9 @@ def main() -> None:
         }
         k = client.post(f"{args.base_url}/knowledge/documents/upload", json=kb_payload)
         k.raise_for_status()
-        print("knowledge_uploaded", k.json()["document"]["id"], "chunks", k.json()["chunks_ingested"])
+        print(
+            "knowledge_uploaded", k.json()["document"]["id"], "chunks", k.json()["chunks_ingested"]
+        )
 
         # Fetch agents
         agents = client.get(f"{args.base_url}/agents")
